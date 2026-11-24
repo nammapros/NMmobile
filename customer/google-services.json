@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "177323361322",
+    "project_id": "nammapro-api",
+    "storage_bucket": "nammapro-api.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:177323361322:android:6250284b19129bf9b06f53",
+        "android_client_info": {
+          "package_name": "com.nammapros.customer"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDJtaGN5GwR9C6e2l0D8CdUx95UFM4CYgA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

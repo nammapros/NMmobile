@@ -1,0 +1,165 @@
+import { Ionicons } from "@expo/vector-icons";
+import { StatusBar } from "expo-status-bar";
+import React from "react";
+import {
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import { BottomNav } from "./src/components/BottomNav";
+import { Header } from "./src/components/Header";
+import { formatInr } from "./src/components/ServiceCard";
+import { AccountScreen } from "./src/screens/AccountScreen";
+import { BookingsScreen } from "./src/screens/BookingsScreen";
+import { CartModal } from "./src/screens/CartModal";
+import { HomeScreen } from "./src/screens/HomeScreen";
+import { LocationModal } from "./src/screens/LocationModal";
+import { OtpModal } from "./src/screens/OtpModal";
+import { ServiceDetailModal } from "./src/screens/ServiceDetailModal";
+import { ServicesScreen } from "./src/screens/ServicesScreen";
+import { AppProvider, useApp } from "./src/state/AppContext";
+import { colors, radii, spacing } from "./src/theme";
+
+function MainNavigator() {
+  const { activeTab, cartItemCount, cartTotalPaise, setIsCartOpen } = useApp();
+
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar style="dark" />
+      <KeyboardAvoidingView
+        style={styles.keyboardView}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
+        {/* Top Header */}
+        <Header />
+
+        {/* Tab Screens */}
+        <View style={styles.tabContent}>
+          {activeTab === "home" && <HomeScreen />}
+          {activeTab === "services" && <ServicesScreen />}
+          {activeTab === "bookings" && <BookingsScreen />}
+          {activeTab === "account" && <AccountScreen />}
+        </View>
+
+        {/* Floating Cart Bar (appears when items in cart) */}
+        {Boolean(cartItemCount > 0) && (
+          <Pressable
+            onPress={() => setIsCartOpen(true)}
+            style={styles.floatingCart}
+            accessibilityRole="button"
+            accessibilityLabel={`Cart with ${cartItemCount} items, total ${formatInr(cartTotalPaise)}`}
+          >
+            <View style={styles.floatingCartLeft}>
+              <View style={styles.cartCountPill}>
+                <Text style={styles.cartCountText}>{cartItemCount}</Text>
+              </View>
+              <View>
+                <Text style={styles.cartTotalText}>{formatInr(cartTotalPaise)}</Text>
+                <Text style={styles.cartTotalSub}>Plus taxes • Slot selection next</Text>
+              </View>
+            </View>
+
+            <View style={styles.floatingCartRight}>
+              <Text style={styles.viewCartText}>View Cart</Text>
+              <Ionicons name="arrow-forward" size={15} color={colors.white} />
+            </View>
+          </Pressable>
+        )}
+
+        {/* Bottom Navigation Tabs */}
+        <BottomNav />
+
+        {/* Global Modals */}
+        <ServiceDetailModal />
+        <CartModal />
+        <LocationModal />
+        <OtpModal />
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+}
+
+export default function App() {
+  return (
+    <SafeAreaProvider>
+      <AppProvider>
+        <MainNavigator />
+      </AppProvider>
+    </SafeAreaProvider>
+  );
+}
+
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: colors.surface,
+  },
+  keyboardView: {
+    flex: 1,
+    backgroundColor: colors.canvas,
+  },
+  tabContent: {
+    flex: 1,
+  },
+  floatingCart: {
+    position: "absolute",
+    bottom: Platform.OS === "ios" ? 75 : 65,
+    left: spacing.lg,
+    right: spacing.lg,
+    backgroundColor: colors.primary,
+    borderRadius: radii.lg,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 8,
+    zIndex: 30,
+  },
+  floatingCartLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+  },
+  cartCountPill: {
+    backgroundColor: colors.white,
+    minWidth: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 6,
+  },
+  cartCountText: {
+    color: colors.primary,
+    fontSize: 12,
+    fontWeight: "900",
+  },
+  cartTotalText: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: colors.white,
+  },
+  cartTotalSub: {
+    fontSize: 10,
+    color: "rgba(255, 255, 255, 0.8)",
+  },
+  floatingCartRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  viewCartText: {
+    color: colors.white,
+    fontSize: 13,
+    fontWeight: "800",
+  },
+});

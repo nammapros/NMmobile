@@ -1,0 +1,37 @@
+{
+  "expo": {
+    "name": "NammaPros",
+    "slug": "nmpro-customer",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "nammapros",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#800020"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.nammapros.customer"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#800020",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "package": "com.nammapros.customer",
+      "googleServicesFile": "./google-services.json"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "apiBaseUrl": "https://nammapros-api-production-177323361322.asia-southeast1.run.app",
+      "fallbackApiBaseUrl": "https://nammapros-api-production-xlexcj72qa-as.a.run.app"
+    }
+  }
+}
