@@ -25,7 +25,7 @@ import { RatingModal } from "./src/screens/RatingModal";
 import { ServiceDetailModal } from "./src/screens/ServiceDetailModal";
 import { ServicesScreen } from "./src/screens/ServicesScreen";
 import { AppProvider, useApp } from "./src/state/AppContext";
-import { colors, radii, spacing } from "./src/theme";
+import { colors, isAndroid, radii, spacing, statusBarHeight } from "./src/theme";
 
 function MainNavigator() {
   const { activeTab, cartItemCount, cartTotalPaise, setIsCartOpen } = useApp();
@@ -103,6 +103,7 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.surface,
+    paddingTop: isAndroid ? statusBarHeight : 0,
   },
   keyboardView: {
     flex: 1,

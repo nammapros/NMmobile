@@ -15,13 +15,21 @@ export interface ServiceCategory {
 export interface Package {
   id: string;
   name: string;
-  pricing_model: "FIXED_PRICE" | "INSPECTION_BASED";
+  pricing_model: "FIXED_PRICE" | "INSPECTION_BASED" | string;
   duration_minutes?: number;
-  inclusions: string[];
-  exclusions: string[];
+  description?: string;
+  inclusions?: string[] | string;
+  exclusions?: string[] | string;
   price_paise?: number;
   original_price_paise?: number;
+  mrp_paise?: number;
+  discount_percent?: number;
   price_is_from?: boolean;
+}
+
+export interface ServiceFaq {
+  question: string;
+  answer: string;
 }
 
 export interface Service {
@@ -31,12 +39,16 @@ export interface Service {
   summary?: string;
   short_description?: string;
   description?: string;
+  full_description?: string;
   category: string;
   category_id?: string;
   category_name?: string;
   starting_price_paise?: number | null;
   starting_mrp_paise?: number | null;
+  starting_discount_percent?: number | null;
+  price_note?: string;
   rating_avg?: number | null;
+  average_rating?: number | null;
   review_count?: number;
   is_active?: boolean;
   is_popular?: boolean;
@@ -44,11 +56,20 @@ export interface Service {
   inclusions?: string | string[];
   exclusions?: string | string[];
   important_notes?: string;
-  features?: string;
-  main_image?: string;
-  cover_image?: string;
-  list_image?: string;
-  landing_thumbnail?: string;
+  features?: string | string[];
+  faqs?: ServiceFaq[];
+  process_steps?: any[];
+  spare_parts_rates?: any[];
+  brands?: string[];
+  main_image?: string | null;
+  cover_image?: string | null;
+  list_image?: string | null;
+  landing_thumbnail?: string | null;
+  banner_image?: string | null;
+  popup_cover_image?: string | null;
+  popup_content_image?: string | null;
+  image_url?: string | null;
+  images?: string[];
   packages?: Package[];
   sort_order?: number;
 }

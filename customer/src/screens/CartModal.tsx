@@ -17,7 +17,7 @@ import { api } from "../api";
 import { getServiceImage } from "../assets";
 import { formatInr } from "../components/ServiceCard";
 import { useApp } from "../state/AppContext";
-import { colors, radii, spacing } from "../theme";
+import { colors, isAndroid, radii, spacing, statusBarHeight } from "../theme";
 import type { Address, Booking } from "../types";
 
 type CheckoutStep =
@@ -242,6 +242,7 @@ export function CartModal() {
       visible={isCartOpen}
       animationType="slide"
       transparent={false}
+      statusBarTranslucent={true}
       onRequestClose={() => {
         if (currentStep === "cart" || currentStep === "confirmed") {
           setIsCartOpen(false);
@@ -708,6 +709,7 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.surface,
+    paddingTop: isAndroid ? statusBarHeight : 0,
   },
   header: {
     flexDirection: "row",

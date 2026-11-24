@@ -28,33 +28,7 @@ export function HomeScreen() {
   } = useApp();
 
   const services = catalog?.services ?? [];
-  const popularServices = [
-    {
-      id: "popular-ac",
-      title: "AC Service",
-      categorySlug: "ac",
-      image: ServiceBannerAssets.ac,
-    },
-    {
-      id: "popular-appliance",
-      title: "Appliance Repair",
-      categorySlug: "appliances",
-      image: CategoryCardAssets.appliances,
-    },
-    {
-      id: "popular-cleaning",
-      title: "Deep Cleaning",
-      categorySlug: "cleaning",
-      image: CategoryCardAssets.cleaning,
-    },
-  ];
-
   const trust = catalog?.trust_stats;
-
-  const handleSelectPopular = (categorySlug: string) => {
-    setSelectedCategorySlug(categorySlug);
-    setActiveTab("services");
-  };
 
   return (
     <ScrollView
@@ -124,40 +98,7 @@ export function HomeScreen() {
         </View>
       </View>
 
-      {/* 3. Popular Services Section */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionTitle}>Popular Services</Text>
-          <Pressable onPress={() => setActiveTab("services")}>
-            <Text style={styles.seeAllText}>View All</Text>
-          </Pressable>
-        </View>
-
-        <View style={styles.popularRow}>
-          {popularServices.map((item) => (
-            <Pressable
-              key={item.id}
-              onPress={() => handleSelectPopular(item.categorySlug)}
-              style={styles.popularCard}
-              accessibilityRole="button"
-              accessibilityLabel={item.title}
-            >
-              <View style={styles.popularImageContainer}>
-                <Image
-                  source={item.image}
-                  style={styles.popularImage}
-                  resizeMode="contain"
-                />
-              </View>
-              <Text style={styles.popularTitle} numberOfLines={1}>
-                {item.title}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-      </View>
-
-      {/* 4. Explore All Categories Grid */}
+      {/* 3. Explore All Categories Grid */}
       <View style={styles.section}>
         <View style={styles.sectionHeaderRow}>
           <Text style={styles.sectionTitle}>Explore Categories</Text>
@@ -327,45 +268,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "700",
     color: colors.primary,
-  },
-
-  // Popular Services Cards (Horizontal 3-column row)
-  popularRow: {
-    flexDirection: "row",
-    gap: spacing.md,
-  },
-  popularCard: {
-    flex: 1,
-    backgroundColor: colors.surface,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-    padding: spacing.xs,
-    alignItems: "center",
-    shadowColor: colors.ink,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
-  },
-  popularImageContainer: {
-    width: "100%",
-    height: 75,
-    borderRadius: radii.md,
-    overflow: "hidden",
-    backgroundColor: colors.canvasWarm,
-    marginBottom: 6,
-  },
-  popularImage: {
-    width: "100%",
-    height: "100%",
-  },
-  popularTitle: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: colors.ink,
-    textAlign: "center",
-    paddingBottom: 4,
   },
 
   // Spotlight carousel

@@ -11,7 +11,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BrandAssets, HomeIconAssets } from "../assets";
 import { useApp } from "../state/AppContext";
-import { colors, radii, spacing, typography } from "../theme";
+import { colors, isAndroid, radii, spacing, statusBarHeight, typography } from "../theme";
 
 export function IntroModal() {
   const { isIntroOpen, setIsIntroOpen, setIsAuthOpen, setActiveTab } = useApp();
@@ -34,6 +34,7 @@ export function IntroModal() {
       visible={isIntroOpen}
       animationType="fade"
       transparent={false}
+      statusBarTranslucent={true}
       onRequestClose={() => setIsIntroOpen(false)}
     >
       <SafeAreaView style={styles.safeArea}>
@@ -156,6 +157,7 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.surface,
+    paddingTop: isAndroid ? statusBarHeight : 0,
   },
   container: {
     flex: 1,

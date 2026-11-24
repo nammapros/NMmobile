@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useApp } from "../state/AppContext";
-import { colors, radii, spacing } from "../theme";
+import { colors, isAndroid, radii, spacing, statusBarHeight } from "../theme";
 
 interface LocationItem {
   id: string;
@@ -107,6 +107,7 @@ export function LocationModal() {
       visible={isLocationModalOpen}
       animationType="slide"
       transparent={false}
+      statusBarTranslucent={true}
       onRequestClose={() => setIsLocationModalOpen(false)}
     >
       <SafeAreaView style={styles.safeArea}>
@@ -196,6 +197,7 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.surface,
+    paddingTop: isAndroid ? statusBarHeight : 0,
   },
   header: {
     flexDirection: "row",

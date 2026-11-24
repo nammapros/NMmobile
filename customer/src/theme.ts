@@ -1,3 +1,8 @@
+import { Platform, StatusBar } from "react-native";
+
+export const isAndroid = Platform.OS === "android";
+export const statusBarHeight = Platform.OS === "android" ? (StatusBar.currentHeight || 28) : 0;
+
 export const colors = {
   primary: "#800020",        // NammaPros Burgundy
   primaryDark: "#5e0017",    // Deep Burgundy

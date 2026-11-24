@@ -15,7 +15,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { api, CLOUD_RUN_URL_1, CLOUD_RUN_URL_2 } from "../api";
 import { useApp } from "../state/AppContext";
-import { colors, radii, spacing } from "../theme";
+import { colors, isAndroid, radii, spacing, statusBarHeight } from "../theme";
 
 export function AccountScreen() {
   const {
@@ -263,6 +263,7 @@ export function AccountScreen() {
           visible={showAddressesModal}
           animationType="slide"
           transparent={false}
+          statusBarTranslucent={true}
           onRequestClose={() => setShowAddressesModal(false)}
         >
           <SafeAreaView style={styles.modalSafeArea}>
@@ -299,6 +300,7 @@ export function AccountScreen() {
           visible={showPaymentMethodsModal}
           animationType="slide"
           transparent={false}
+          statusBarTranslucent={true}
           onRequestClose={() => setShowPaymentMethodsModal(false)}
         >
           <SafeAreaView style={styles.modalSafeArea}>
@@ -350,6 +352,7 @@ export function AccountScreen() {
           visible={showBackendModal}
           animationType="slide"
           transparent={false}
+          statusBarTranslucent={true}
           onRequestClose={() => setShowBackendModal(false)}
         >
           <SafeAreaView style={styles.modalSafeArea}>
@@ -415,6 +418,7 @@ export function AccountScreen() {
           visible={showAboutModal}
           animationType="slide"
           transparent={false}
+          statusBarTranslucent={true}
           onRequestClose={() => setShowAboutModal(false)}
         >
           <SafeAreaView style={styles.modalSafeArea}>
@@ -585,6 +589,7 @@ const styles = StyleSheet.create({
   modalSafeArea: {
     flex: 1,
     backgroundColor: colors.surface,
+    paddingTop: isAndroid ? statusBarHeight : 0,
   },
   modalHeader: {
     flexDirection: "row",

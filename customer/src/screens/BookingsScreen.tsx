@@ -19,7 +19,7 @@ import { api } from "../api";
 import { ServiceBannerAssets } from "../assets";
 import { formatInr } from "../components/ServiceCard";
 import { useApp } from "../state/AppContext";
-import { colors, radii, spacing } from "../theme";
+import { colors, isAndroid, radii, spacing, statusBarHeight } from "../theme";
 import type { Booking } from "../types";
 
 export function BookingsScreen() {
@@ -311,6 +311,7 @@ export function BookingsScreen() {
           visible={Boolean(activeTrackingBooking)}
           animationType="slide"
           transparent={false}
+          statusBarTranslucent={true}
           onRequestClose={() => setActiveTrackingBooking(null)}
         >
           <SafeAreaView style={styles.trackingSafeArea}>
@@ -642,6 +643,7 @@ const styles = StyleSheet.create({
   trackingSafeArea: {
     flex: 1,
     backgroundColor: colors.surface,
+    paddingTop: isAndroid ? statusBarHeight : 0,
   },
   trackingHeader: {
     flexDirection: "row",

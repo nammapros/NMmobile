@@ -109,7 +109,48 @@ export const CategoryCardAssets: Record<string, ImageSourcePropType> = {
   "mosquito-net": require("../assets/images/service-icons-np/mosquito_net.png"),
 };
 
-export function getServiceImage(service: { slug?: string; category?: string; name?: string; main_image?: string; cover_image?: string }): ImageSourcePropType {
+export function getServiceImage(service?: {
+  slug?: string;
+  category?: string;
+  name?: string;
+  main_image?: string | null;
+  cover_image?: string | null;
+  list_image?: string | null;
+  landing_thumbnail?: string | null;
+  banner_image?: string | null;
+  image_url?: string | null;
+  popup_cover_image?: string | null;
+  popup_content_image?: string | null;
+}): ImageSourcePropType {
+  if (!service) return ServiceBannerAssets.ac;
+
+  // 1. Live image URL from backend (Cloudinary / HTTPS / Direct)
+  const candidateUrl =
+    service.list_image ||
+    service.main_image ||
+    service.cover_image ||
+    service.landing_thumbnail ||
+    service.banner_image ||
+    service.popup_cover_image ||
+    service.popup_content_image ||
+    service.image_url;
+
+  if (candidateUrl && typeof candidateUrl === "string" && candidateUrl.trim().length > 0) {
+    const trimmed = candidateUrl.trim();
+    if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+      return { uri: trimmed };
+    }
+    if (trimmed.startsWith("/")) {
+      // Check if it matches a local banner asset filename
+      const filename = trimmed.split("/").pop()?.replace(/\.[^/.]+$/, "") || "";
+      if (filename && ServiceBannerAssets[filename]) {
+        return ServiceBannerAssets[filename];
+      }
+      return { uri: `https://nammapros.com${trimmed}` };
+    }
+  }
+
+  // 2. Curated fallback based on slug, category, name keywords
   const cat = (service.category || "").toLowerCase();
   const slug = (service.slug || "").toLowerCase();
   const name = (service.name || "").toLowerCase();
