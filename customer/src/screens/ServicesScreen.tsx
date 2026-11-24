@@ -225,7 +225,7 @@ export function ServicesScreen() {
                   <Image
                     source={cat.image}
                     style={styles.categoryCardImg}
-                    resizeMode="cover"
+                    resizeMode="contain"
                   />
                 </View>
                 <Text style={styles.categoryCardTitle} numberOfLines={2}>

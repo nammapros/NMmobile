@@ -9,18 +9,18 @@ export const BrandAssets = {
 };
 
 export const HomeIconAssets: Record<string, ImageSourcePropType> = {
-  "deep-cleaning": require("../assets/images/home-icons/deep-cleaning.png"),
-  handyman: require("../assets/images/home-icons/handyman.png"),
-  "appliance-services": require("../assets/images/home-icons/appliance-services.png"),
-  "water-tank-cleaning": require("../assets/images/home-icons/water-tank-cleaning.png"),
-  "mosquito-net": require("../assets/images/home-icons/mosquito-net.png"),
-  "sofa-repair": require("../assets/images/home-icons/sofa-repair.png"),
-  "bathroom-cleaning": require("../assets/images/home-icons/bathroom-cleaning.png"),
-  "kitchen-cleaning": require("../assets/images/home-icons/kitchen-cleaning.png"),
-  "full-house-cleaning": require("../assets/images/home-icons/full-house-cleaning.png"),
-  electrician: require("../assets/images/home-icons/electrician.png"),
-  plumber: require("../assets/images/home-icons/plumber.png"),
-  carpenter: require("../assets/images/home-icons/carpenter.png"),
+  "deep-cleaning": require("../assets/images/service-icons-np/deep_cleaning.png"),
+  handyman: require("../assets/images/service-icons-np/electrician_plumber_carpenter.png"),
+  "appliance-services": require("../assets/images/service-icons-np/appliances.png"),
+  "water-tank-cleaning": require("../assets/images/service-icons-np/tank_cleaning.png"),
+  "mosquito-net": require("../assets/images/service-icons-np/mosquito_net.png"),
+  "sofa-repair": require("../assets/images/service-icons-np/sofa_cleaning_repair.png"),
+  "bathroom-cleaning": require("../assets/images/service-icons-np/bathroom_cleaning.png"),
+  "kitchen-cleaning": require("../assets/images/service-icons-np/kitchen_cleaning.png"),
+  "full-house-cleaning": require("../assets/images/service-icons-np/full_house_cleaning.png"),
+  electrician: require("../assets/images/service-icons-np/electrician.png"),
+  plumber: require("../assets/images/service-icons-np/plumber.png"),
+  carpenter: require("../assets/images/service-icons-np/carpenter.png"),
   ac: require("../assets/images/home-icons/appliances/ac.png"),
   "washing-machine": require("../assets/images/home-icons/appliances/washing-machine.png"),
   geyser: require("../assets/images/home-icons/appliances/geyser.png"),
@@ -84,32 +84,73 @@ export const ServiceBannerAssets: Record<string, ImageSourcePropType> = {
   tv: require("../assets/images/banners/tv-repair.png"),
   geyser: require("../assets/images/banners/geyser.png"),
   "water-purifier": require("../assets/images/banners/water-purifier.png"),
-  "water-tank-cleaning": require("../assets/images/banners/water-tank-cleaning.png"),
-  "mosquito-net": require("../assets/images/banners/mosquito-net.png"),
-  sofa: require("../assets/images/banners/sofa-repair.png"),
+  "water-tank-cleaning": require("../assets/images/service-icons-np/tank_cleaning.png"),
+  "mosquito-net": require("../assets/images/service-icons-np/mosquito_net.png"),
+  sofa: require("../assets/images/service-icons-np/sofa_cleaning_repair.png"),
   cctv: require("../assets/images/banners/cctv.png"),
   microwave: require("../assets/images/banners/microwave.png"),
   dishwasher: require("../assets/images/banners/dishwasher.png"),
+  appliances: require("../assets/images/service-icons-np/appliances.png"),
+  cleaning: require("../assets/images/service-icons-np/deep_cleaning.png"),
+  electrician: require("../assets/images/service-icons-np/electrician.png"),
+  plumber: require("../assets/images/service-icons-np/plumber.png"),
+  carpenter: require("../assets/images/service-icons-np/carpenter.png"),
 };
 
 export const CategoryCardAssets: Record<string, ImageSourcePropType> = {
   ac: require("../assets/images/banners/ac-service.png"),
-  appliances: require("../assets/images/categories/home-appliances.jpeg"),
-  cleaning: require("../assets/images/categories/cleaning.png"),
-  electrician: require("../assets/images/home-icons/electrician.png"),
-  plumber: require("../assets/images/home-icons/plumber.png"),
-  carpenter: require("../assets/images/home-icons/carpenter.png"),
-  "water-tank-cleaning": require("../assets/images/banners/water-tank-cleaning.png"),
-  sofa: require("../assets/images/banners/sofa-repair.png"),
-  "mosquito-net": require("../assets/images/banners/mosquito-net.png"),
+  appliances: require("../assets/images/service-icons-np/appliances.png"),
+  cleaning: require("../assets/images/service-icons-np/deep_cleaning.png"),
+  electrician: require("../assets/images/service-icons-np/electrician.png"),
+  plumber: require("../assets/images/service-icons-np/plumber.png"),
+  carpenter: require("../assets/images/service-icons-np/carpenter.png"),
+  "water-tank-cleaning": require("../assets/images/service-icons-np/tank_cleaning.png"),
+  sofa: require("../assets/images/service-icons-np/sofa_cleaning_repair.png"),
+  "mosquito-net": require("../assets/images/service-icons-np/mosquito_net.png"),
 };
 
-export function getServiceImage(service: { slug?: string; category?: string; main_image?: string; cover_image?: string }): ImageSourcePropType {
+export function getServiceImage(service: { slug?: string; category?: string; name?: string; main_image?: string; cover_image?: string }): ImageSourcePropType {
   const cat = (service.category || "").toLowerCase();
   const slug = (service.slug || "").toLowerCase();
+  const name = (service.name || "").toLowerCase();
+  const combined = `${slug} ${cat} ${name}`;
+
+  if (combined.includes("tank") || combined.includes("water tank")) {
+    return ServiceBannerAssets["water-tank-cleaning"];
+  }
+  if (combined.includes("mosquito")) {
+    return ServiceBannerAssets["mosquito-net"];
+  }
+  if (combined.includes("sofa")) {
+    return ServiceBannerAssets.sofa;
+  }
+  if (combined.includes("electrician") || combined.includes("wiring") || combined.includes("fuse")) {
+    return ServiceBannerAssets.electrician;
+  }
+  if (combined.includes("plumber") || combined.includes("pipe") || combined.includes("leak")) {
+    return ServiceBannerAssets.plumber;
+  }
+  if (combined.includes("carpenter") || combined.includes("furniture") || combined.includes("wood")) {
+    return ServiceBannerAssets.carpenter;
+  }
+  if (combined.includes("bathroom")) {
+    return HomeIconAssets["bathroom-cleaning"];
+  }
+  if (combined.includes("kitchen")) {
+    return HomeIconAssets["kitchen-cleaning"];
+  }
+  if (combined.includes("full house") || combined.includes("home cleaning")) {
+    return HomeIconAssets["full-house-cleaning"];
+  }
+  if (combined.includes("clean")) {
+    return ServiceBannerAssets.cleaning;
+  }
+  if (combined.includes("appliance")) {
+    return ServiceBannerAssets.appliances;
+  }
 
   for (const key of Object.keys(ServiceBannerAssets)) {
-    if (slug.includes(key) || cat.includes(key)) {
+    if (combined.includes(key)) {
       return ServiceBannerAssets[key];
     }
   }

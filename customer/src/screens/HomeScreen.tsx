@@ -146,7 +146,7 @@ export function HomeScreen() {
                 <Image
                   source={item.image}
                   style={styles.popularImage}
-                  resizeMode="cover"
+                  resizeMode="contain"
                 />
               </View>
               <Text style={styles.popularTitle} numberOfLines={1}>
