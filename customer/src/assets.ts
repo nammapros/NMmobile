@@ -92,6 +92,18 @@ export const ServiceBannerAssets: Record<string, ImageSourcePropType> = {
   dishwasher: require("../assets/images/banners/dishwasher.png"),
 };
 
+export const CategoryCardAssets: Record<string, ImageSourcePropType> = {
+  ac: require("../assets/images/banners/ac-service.png"),
+  appliances: require("../assets/images/categories/home-appliances.jpeg"),
+  cleaning: require("../assets/images/categories/cleaning.png"),
+  electrician: require("../assets/images/home-icons/electrician.png"),
+  plumber: require("../assets/images/home-icons/plumber.png"),
+  carpenter: require("../assets/images/home-icons/carpenter.png"),
+  "water-tank-cleaning": require("../assets/images/banners/water-tank-cleaning.png"),
+  sofa: require("../assets/images/banners/sofa-repair.png"),
+  "mosquito-net": require("../assets/images/banners/mosquito-net.png"),
+};
+
 export function getServiceImage(service: { slug?: string; category?: string; main_image?: string; cover_image?: string }): ImageSourcePropType {
   const cat = (service.category || "").toLowerCase();
   const slug = (service.slug || "").toLowerCase();

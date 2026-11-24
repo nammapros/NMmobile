@@ -1,14 +1,12 @@
 import { Ionicons } from "@expo/vector-icons";
 import React from "react";
-import { Image, Pressable, StyleSheet, Text, View } from "react-native";
-import { BrandAssets } from "../assets";
+import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import { useApp } from "../state/AppContext";
 import { colors, radii, spacing } from "../theme";
 
 export function Header() {
   const {
     selectedCity,
-    selectedPincode,
     setIsLocationModalOpen,
     cartItemCount,
     setIsCartOpen,
@@ -17,97 +15,69 @@ export function Header() {
     user,
   } = useApp();
 
-  const handleSearchPress = () => {
-    setActiveTab("services");
-  };
-
-  const handleProfilePress = () => {
-    if (user) {
-      setActiveTab("account");
-    } else {
-      setIsAuthOpen(true);
-    }
+  const handleNotifications = () => {
+    Alert.alert(
+      "Notifications",
+      "No new notifications. You'll receive live status updates here when your technician is dispatched."
+    );
   };
 
   return (
     <View style={styles.container}>
-      {/* 1. Top Bar: Brand Wordmark Logo + Cart & Profile Actions */}
-      <View style={styles.topRow}>
-        <Pressable
-          onPress={() => setActiveTab("home")}
-          accessibilityRole="button"
-          accessibilityLabel="nammapros home"
-          style={styles.logoPressable}
-        >
-          <Image
-            source={BrandAssets.wordmark}
-            style={styles.brandWordmark}
-            resizeMode="contain"
-          />
-        </Pressable>
-
-        <View style={styles.rightActions}>
-          {/* Cart Button */}
-          <Pressable
-            onPress={() => setIsCartOpen(true)}
-            style={styles.iconBtn}
-            accessibilityRole="button"
-            accessibilityLabel={`Cart, ${cartItemCount} items`}
-          >
-            <Ionicons name="cart-outline" size={21} color={colors.ink} />
-            {Boolean(cartItemCount > 0) && (
-              <View style={styles.cartBadge}>
-                <Text style={styles.cartBadgeText}>
-                  {cartItemCount > 9 ? "9+" : cartItemCount}
-                </Text>
-              </View>
-            )}
-          </Pressable>
-
-          {/* User Profile Avatar / Sign In */}
-          <Pressable
-            onPress={handleProfilePress}
-            style={[styles.iconBtn, Boolean(user) && styles.userLoggedInBtn]}
-            accessibilityRole="button"
-            accessibilityLabel={user ? "Account profile" : "Sign in with Firebase OTP"}
-          >
-            <Ionicons
-              name={user ? "person" : "person-outline"}
-              size={19}
-              color={user ? colors.white : colors.ink}
-            />
-            {Boolean(user) && <View style={styles.onlineDot} />}
-          </Pressable>
-        </View>
-      </View>
-
-      {/* 2. Location line: [MapPin] Locality, City [ChevronDown] */}
+      {/* 1. Left: Location Selector [LocationPin] City [Chevron] */}
       <Pressable
         onPress={() => setIsLocationModalOpen(true)}
-        style={styles.locationRow}
+        style={styles.locationBtn}
         accessibilityRole="button"
-        accessibilityLabel={`Service location: ${selectedCity}`}
+        accessibilityLabel={`Selected location ${selectedCity}`}
       >
         <Ionicons name="location-sharp" size={16} color={colors.primary} />
         <Text style={styles.locationText} numberOfLines={1}>
-          {selectedCity} • {selectedPincode}
+          {selectedCity}
         </Text>
         <Ionicons name="chevron-down" size={14} color={colors.muted} />
       </Pressable>
 
-      {/* 3. Search Bar with Burgundy arrow button matching Web Header */}
+      {/* 2. Center: Brand Logo typography "namma pros." */}
       <Pressable
-        onPress={handleSearchPress}
-        style={styles.searchBar}
+        onPress={() => setActiveTab("home")}
+        style={styles.logoBtn}
         accessibilityRole="button"
-        accessibilityLabel="Search for a service"
+        accessibilityLabel="NammaPros Home"
       >
-        <Ionicons name="search" size={17} color={colors.muted} />
-        <Text style={styles.searchPlaceholder}>Search for ‘AC service’</Text>
-        <View style={styles.searchArrowBtn}>
-          <Ionicons name="arrow-forward" size={15} color={colors.white} />
+        <View style={styles.brandRow}>
+          <Text style={styles.brandName}>namma pros</Text>
+          <View style={styles.brandDot} />
         </View>
       </Pressable>
+
+      {/* 3. Right: Bell Notification & Cart Actions */}
+      <View style={styles.rightActions}>
+        <Pressable
+          onPress={handleNotifications}
+          style={styles.iconBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Notifications"
+        >
+          <Ionicons name="notifications-outline" size={21} color={colors.ink} />
+        </Pressable>
+
+        {Boolean(cartItemCount > 0) && (
+          <Pressable
+            onPress={() => setIsCartOpen(true)}
+            style={styles.iconBtn}
+            accessibilityRole="button"
+            accessibilityLabel={`Cart with ${cartItemCount} items`}
+          >
+            <Ionicons name="cart-outline" size={21} color={colors.primary} />
+            <View style={styles.cartBadge}>
+              <Text style={styles.cartBadgeText}>
+                {cartItemCount > 9 ? "9+" : cartItemCount}
+              </Text>
+            </View>
+          </Pressable>
+        )}
+      </View>
     </View>
   );
 }
@@ -116,111 +86,77 @@ const styles = StyleSheet.create({
   container: {
     backgroundColor: colors.surface,
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.xs,
-    paddingBottom: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    gap: spacing.xs,
-  },
-  topRow: {
+    paddingVertical: 10,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    height: 48,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderLight,
+    height: 54,
   },
-  logoPressable: {
-    height: 38,
-    justifyContent: "center",
-  },
-  brandWordmark: {
-    width: 160,
-    height: 34,
-  },
-  rightActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  iconBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: "#E2D9D0",
-    backgroundColor: colors.surface,
-    alignItems: "center",
-    justifyContent: "center",
-    position: "relative",
-  },
-  userLoggedInBtn: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  onlineDot: {
-    position: "absolute",
-    bottom: -1,
-    right: -1,
-    width: 9,
-    height: 9,
-    borderRadius: 5,
-    backgroundColor: colors.success,
-    borderWidth: 1.5,
-    borderColor: colors.surface,
-  },
-  cartBadge: {
-    position: "absolute",
-    top: -5,
-    right: -5,
-    backgroundColor: colors.primary,
-    minWidth: 18,
-    height: 18,
-    borderRadius: 9,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 4,
-    borderWidth: 1.5,
-    borderColor: colors.surface,
-  },
-  cartBadgeText: {
-    color: colors.white,
-    fontSize: 10,
-    fontWeight: "800",
-  },
-  locationRow: {
+  locationBtn: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    paddingVertical: 2,
+    minWidth: 85,
   },
   locationText: {
     fontSize: 13,
     fontWeight: "700",
     color: colors.ink,
+    maxWidth: 95,
   },
-  searchBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: colors.surface,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: "#E2D9D0",
-    paddingLeft: spacing.md,
-    paddingRight: 4,
-    height: 42,
-    gap: spacing.sm,
-    marginTop: 2,
-  },
-  searchPlaceholder: {
-    flex: 1,
-    fontSize: 13,
-    color: colors.muted,
-  },
-  searchArrowBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: radii.sm,
-    backgroundColor: colors.primary,
+  logoBtn: {
     alignItems: "center",
     justifyContent: "center",
+  },
+  brandRow: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    gap: 2,
+  },
+  brandName: {
+    fontSize: 18,
+    fontWeight: "900",
+    color: colors.ink,
+    letterSpacing: -0.4,
+  },
+  brandDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.primary,
+  },
+  rightActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    minWidth: 85,
+    justifyContent: "flex-end",
+  },
+  iconBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    position: "relative",
+  },
+  cartBadge: {
+    position: "absolute",
+    top: 2,
+    right: 2,
+    backgroundColor: colors.primary,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 2,
+  },
+  cartBadgeText: {
+    color: colors.white,
+    fontSize: 9,
+    fontWeight: "800",
   },
 });

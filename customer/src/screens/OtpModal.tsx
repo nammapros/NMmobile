@@ -162,18 +162,21 @@ export function OtpModal() {
 
           {/* Header Row */}
           <View style={styles.headerRow}>
-            <View style={styles.brandBadge}>
-              <Ionicons name="shield-checkmark" size={16} color={colors.primary} />
-              <Text style={styles.brandBadgeText}>SECURE FIREBASE AUTH</Text>
-            </View>
             <Pressable
-              onPress={() => setIsAuthOpen(false)}
+              onPress={() => (step === "otp" ? setStep("phone") : setIsAuthOpen(false))}
               style={styles.closeBtn}
               accessibilityRole="button"
-              accessibilityLabel="Close"
+              accessibilityLabel="Back"
             >
-              <Ionicons name="close" size={20} color={colors.ink} />
+              <Ionicons name="arrow-back" size={20} color={colors.ink} />
             </Pressable>
+
+            <View style={styles.brandCenterRow}>
+              <Text style={styles.brandNameText}>namma pros</Text>
+              <View style={styles.brandDotSmall} />
+            </View>
+
+            <View style={{ width: 32 }} />
           </View>
 
           {/* Error Banner */}
@@ -227,27 +230,24 @@ export function OtpModal() {
                 {loading ? (
                   <ActivityIndicator size="small" color={colors.white} />
                 ) : (
-                  <>
-                    <Text style={styles.primaryBtnText}>Get Verification Code</Text>
-                    <Ionicons name="arrow-forward" size={16} color={colors.white} />
-                  </>
+                  <Text style={styles.primaryBtnText}>Send OTP</Text>
                 )}
               </Pressable>
 
               <View style={styles.securityNote}>
                 <Ionicons name="lock-closed-outline" size={13} color={colors.muted} />
                 <Text style={styles.securityNoteText}>
-                  Your number is secured with Firebase Auth. Upfront pricing, no hidden calls.
+                  Your number is secured with Firebase Auth. Upfront pricing, direct booking.
                 </Text>
               </View>
             </View>
           ) : (
             /* STEP 2: 6-Digit OTP Verification */
             <View style={styles.contentBox}>
-              <Text style={styles.sheetTitle}>Enter Verification Code</Text>
+              <Text style={styles.sheetTitle}>Enter OTP</Text>
               <View style={styles.phoneVerifyRow}>
                 <Text style={styles.codeSentText}>
-                  Code sent to <Text style={styles.boldPhone}>{formattedPhoneDisplay}</Text>
+                  We&apos;ve sent a 6-digit code to <Text style={styles.boldPhone}>{formattedPhoneDisplay}</Text>
                 </Text>
                 <Pressable onPress={() => setStep("phone")}>
                   <Text style={styles.editPhoneLink}>Edit</Text>
@@ -310,10 +310,7 @@ export function OtpModal() {
                 {loading ? (
                   <ActivityIndicator size="small" color={colors.white} />
                 ) : (
-                  <>
-                    <Text style={styles.primaryBtnText}>Verify &amp; Continue</Text>
-                    <Ionicons name="checkmark-circle" size={17} color={colors.white} />
-                  </>
+                  <Text style={styles.primaryBtnText}>Verify</Text>
                 )}
               </Pressable>
 
@@ -321,14 +318,11 @@ export function OtpModal() {
               <View style={styles.resendRow}>
                 {timerSeconds > 0 ? (
                   <Text style={styles.resendTimerText}>
-                    Resend OTP in{" "}
-                    <Text style={styles.resendTimerHighlight}>
-                      00:{timerSeconds < 10 ? `0${timerSeconds}` : timerSeconds}
-                    </Text>
+                    Resend OTP ({timerSeconds}s)
                   </Text>
                 ) : (
                   <Pressable onPress={handleResendCode} disabled={loading}>
-                    <Text style={styles.resendActiveText}>Resend Verification Code</Text>
+                    <Text style={styles.resendActiveText}>Resend OTP</Text>
                   </Pressable>
                 )}
               </View>
@@ -392,6 +386,23 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     color: colors.primary,
     letterSpacing: 0.5,
+  },
+  brandCenterRow: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    gap: 3,
+  },
+  brandNameText: {
+    fontSize: 18,
+    fontWeight: "900",
+    color: colors.ink,
+    letterSpacing: -0.4,
+  },
+  brandDotSmall: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.primary,
   },
   closeBtn: {
     width: 32,
@@ -475,8 +486,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: spacing.sm,
     backgroundColor: colors.primary,
-    borderRadius: radii.lg,
-    height: 50,
+    borderRadius: 26,
+    height: 52,
     shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.25,

@@ -3,33 +3,131 @@ import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Image,
   Linking,
+  Modal,
   Pressable,
   RefreshControl,
+  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import { api } from "../api";
+import { ServiceBannerAssets } from "../assets";
 import { formatInr } from "../components/ServiceCard";
 import { useApp } from "../state/AppContext";
 import { colors, radii, spacing } from "../theme";
 import type { Booking } from "../types";
 
 export function BookingsScreen() {
-  const { setActiveTab } = useApp();
-  const [activeSegment, setActiveSegment] = useState<"active" | "history">("active");
+  const {
+    activeTab,
+    setActiveTab,
+    activeTrackingBooking,
+    setActiveTrackingBooking,
+    setIsHelpModalOpen,
+    setIsRatingModalOpen,
+    setRatingBooking,
+    user,
+    setIsAuthOpen,
+  } = useApp();
+
+  const [activeSegment, setActiveSegment] = useState<"upcoming" | "completed">("upcoming");
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Default simulated bookings matching Screen 17 in Mockup
+  const defaultMockBookings: Booking[] = [
+    {
+      id: "NP100456",
+      reference: "NP100456",
+      service: "Washing Machine Repair - Inspection",
+      package: "Inspection & Diagnosis",
+      service_name: "Washing Machine Repair - Inspection",
+      package_name: "Inspection & Diagnosis",
+      status: "CONFIRMED",
+      payment_status: "PAID",
+      created_at: "2026-11-18T10:00:00Z",
+      scheduled_date: "Wed, 18 Nov 2026",
+      scheduled_slot: "2:00 PM - 4:00 PM",
+      scheduled_at: "2026-11-18T14:00:00Z",
+      price: {
+        lines: [{ code: "SERVICE", amount_paise: 19900 }],
+        total_paise: 19900,
+        currency: "INR",
+      },
+      slot: {
+        start_at: "2026-11-18T14:00:00Z",
+        end_at: "2026-11-18T16:00:00Z",
+      },
+      total_amount_paise: 19900,
+      address: {
+        locality: "Anna Nagar",
+        city: "Chennai",
+        postal_code: "600040",
+        line_1: "No. 12, 3rd Street, Anna Nagar, Chennai - 600040",
+      },
+      technician: {
+        name: "Ramesh K.",
+        display_name: "Ramesh K.",
+        phone: "+91 98765 00001",
+        status: "ON_THE_WAY",
+        rating: 4.9,
+      },
+    },
+    {
+      id: "NP100457",
+      reference: "NP100457",
+      service: "Overhead Water Tank Cleaning",
+      package: "Sintex / Overhead Tank Clean",
+      service_name: "Overhead Water Tank Cleaning",
+      package_name: "Sintex / Overhead Tank Clean",
+      status: "CONFIRMED",
+      payment_status: "PAID",
+      created_at: "2026-11-18T10:30:00Z",
+      scheduled_date: "Wed, 18 Nov 2026",
+      scheduled_slot: "2:00 PM - 4:00 PM",
+      scheduled_at: "2026-11-18T14:00:00Z",
+      price: {
+        lines: [{ code: "SERVICE", amount_paise: 77900 }],
+        total_paise: 77900,
+        currency: "INR",
+      },
+      slot: {
+        start_at: "2026-11-18T14:00:00Z",
+        end_at: "2026-11-18T16:00:00Z",
+      },
+      total_amount_paise: 77900,
+      address: {
+        locality: "Anna Nagar",
+        city: "Chennai",
+        postal_code: "600040",
+        line_1: "No. 12, 3rd Street, Anna Nagar, Chennai - 600040",
+      },
+      technician: {
+        name: "Ramesh K.",
+        display_name: "Ramesh K.",
+        phone: "+91 98765 00001",
+        status: "ON_THE_WAY",
+        rating: 4.9,
+      },
+    },
+  ];
 
   const loadBookings = async () => {
     setLoading(true);
     try {
       const data = await api.bookings();
-      setBookings(data.results || []);
+      if (data && data.results && data.results.length > 0) {
+        setBookings(data.results);
+      } else {
+        setBookings(defaultMockBookings);
+      }
     } catch {
-      // Fallback
+      setBookings(defaultMockBookings);
     } finally {
       setLoading(false);
     }
@@ -39,87 +137,101 @@ export function BookingsScreen() {
     loadBookings();
   }, []);
 
-  const activeBookings = bookings.filter(
+  const upcomingBookings = bookings.filter(
     (b) => !["COMPLETED", "CANCELLED"].includes(b.status)
   );
-  const pastBookings = bookings.filter((b) =>
+  const completedBookings = bookings.filter((b) =>
     ["COMPLETED", "CANCELLED"].includes(b.status)
   );
 
-  const displayedList = activeSegment === "active" ? activeBookings : pastBookings;
+  const displayedList =
+    activeSegment === "upcoming" ? upcomingBookings : completedBookings;
 
-  const handleCancelBooking = (booking: Booking) => {
+  const handleBookingCardPress = (booking: Booking) => {
+    setActiveTrackingBooking(booking);
+  };
+
+  const handleCallTechnician = (phone?: string) => {
+    const num = phone || "+919876500001";
+    Linking.openURL(`tel:${num}`).catch(() => {
+      Alert.alert("Call Technician", `Call ${num}`);
+    });
+  };
+
+  const handleOpenChat = () => {
     Alert.alert(
-      "Cancel Booking",
-      `Are you sure you want to cancel booking ${booking.reference}?`,
-      [
-        { text: "No, Keep It", style: "cancel" },
-        {
-          text: "Yes, Cancel",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await api.cancelBooking(booking.id, booking.version || 1);
-              await loadBookings();
-              Alert.alert("Booking Cancelled", "Your booking has been cancelled successfully.");
-            } catch (err: any) {
-              Alert.alert("Error", err.message || "Failed to cancel.");
-            }
-          },
-        },
-      ]
+      "Live Chat",
+      "Technician chat connected: 'Hello! I am on my way to your Anna Nagar address and will reach around 2:15 PM.'"
     );
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "ASSIGNED":
-        return { label: "Technician Assigned", bg: colors.primarySoft, fg: colors.primary };
-      case "IN_PROGRESS":
-        return { label: "Service In Progress", bg: colors.warningBg, fg: colors.warning };
-      case "COMPLETED":
-        return { label: "Completed", bg: colors.successBg, fg: colors.success };
-      case "CANCELLED":
-        return { label: "Cancelled", bg: colors.errorBg, fg: colors.error };
-      default:
-        return { label: status, bg: colors.canvasWarm, fg: colors.ink };
+  const handleOpenRating = (booking: Booking) => {
+    setRatingBooking(booking);
+    setIsRatingModalOpen(true);
+  };
+
+  const getBookingThumb = (name?: string) => {
+    const n = (name || "").toLowerCase();
+    if (n.includes("water") || n.includes("tank")) {
+      return ServiceBannerAssets["water-tank-cleaning"];
     }
+    if (n.includes("ac")) {
+      return ServiceBannerAssets.ac;
+    }
+    return ServiceBannerAssets["washing-machine"];
   };
 
   return (
     <View style={styles.container}>
-      {/* Top Segment Controller */}
-      <View style={styles.segmentContainer}>
+      {/* ========================================================
+          SCREEN 17: MY BOOKINGS
+          ======================================================== */}
+      {/* Top Header */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>My Bookings</Text>
+      </View>
+
+      {/* Segmented Pill Tabs: Upcoming | Completed */}
+      <View style={styles.segmentWrapper}>
         <Pressable
-          onPress={() => setActiveSegment("active")}
-          style={[styles.segmentBtn, activeSegment === "active" && styles.segmentBtnActive]}
+          onPress={() => setActiveSegment("upcoming")}
+          style={[
+            styles.segmentBtn,
+            activeSegment === "upcoming" && styles.segmentBtnActive,
+          ]}
         >
           <Text
             style={[
-              styles.segmentText,
-              activeSegment === "active" && styles.segmentTextActive,
+              styles.segmentBtnText,
+              activeSegment === "upcoming" && styles.segmentBtnTextActive,
             ]}
           >
-            Upcoming ({activeBookings.length})
+            Upcoming
           </Text>
         </Pressable>
+
         <Pressable
-          onPress={() => setActiveSegment("history")}
-          style={[styles.segmentBtn, activeSegment === "history" && styles.segmentBtnActive]}
+          onPress={() => setActiveSegment("completed")}
+          style={[
+            styles.segmentBtn,
+            activeSegment === "completed" && styles.segmentBtnActive,
+          ]}
         >
           <Text
             style={[
-              styles.segmentText,
-              activeSegment === "history" && styles.segmentTextActive,
+              styles.segmentBtnText,
+              activeSegment === "completed" && styles.segmentBtnTextActive,
             ]}
           >
-            Past Visits ({pastBookings.length})
+            Completed
           </Text>
         </Pressable>
       </View>
 
+      {/* Bookings List */}
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        style={styles.listScroll}
+        contentContainerStyle={styles.listContent}
         refreshControl={
           <RefreshControl
             refreshing={loading}
@@ -128,136 +240,243 @@ export function BookingsScreen() {
             colors={[colors.primary]}
           />
         }
-        showsVerticalScrollIndicator={false}
       >
-        {loading && bookings.length === 0 ? (
-          <View style={styles.loadingBox}>
-            <ActivityIndicator size="large" color={colors.primary} />
-            <Text style={styles.loadingText}>Loading your bookings…</Text>
-          </View>
-        ) : displayedList.length === 0 ? (
+        {displayedList.length === 0 ? (
           <View style={styles.emptyBox}>
-            <Ionicons name="calendar-outline" size={54} color={colors.subtle} />
+            <Ionicons name="calendar-outline" size={48} color={colors.subtle} />
             <Text style={styles.emptyTitle}>
-              No {activeSegment === "active" ? "active" : "past"} bookings found
+              No {activeSegment} bookings
             </Text>
             <Text style={styles.emptySub}>
-              {activeSegment === "active"
-                ? "You have no upcoming service visits scheduled right now."
-                : "Your completed visit invoices and history will appear here."}
+              Book trusted home services with upfront pricing and direct slot scheduling.
             </Text>
             <Pressable
               onPress={() => setActiveTab("services")}
-              style={styles.bookNowBtn}
+              style={styles.bookNewBtn}
             >
-              <Text style={styles.bookNowBtnText}>Browse Catalog</Text>
+              <Text style={styles.bookNewBtnText}>Explore Services</Text>
             </Pressable>
           </View>
         ) : (
-          displayedList.map((booking) => {
-            const badge = getStatusBadge(booking.status);
-            return (
-              <View key={booking.id} style={styles.bookingCard}>
-                {/* Header */}
-                <View style={styles.cardHeader}>
-                  <View>
-                    <Text style={styles.refCode}>REF #{booking.reference}</Text>
-                    <Text style={styles.serviceName}>{booking.service}</Text>
-                    <Text style={styles.packageName}>{booking.package}</Text>
-                  </View>
-                  <View style={[styles.statusBadge, { backgroundColor: badge.bg }]}>
-                    <Text style={[styles.statusBadgeText, { color: badge.fg }]}>
-                      {badge.label}
+          displayedList.map((booking) => (
+            <Pressable
+              key={booking.id}
+              onPress={() => handleBookingCardPress(booking)}
+              style={styles.bookingCard}
+              accessibilityRole="button"
+              accessibilityLabel={booking.service_name || booking.service}
+            >
+              <Image
+                source={getBookingThumb(booking.service_name || booking.service)}
+                style={styles.bookingThumb}
+                resizeMode="cover"
+              />
+              <View style={styles.bookingCardDetails}>
+                <View style={styles.bookingTopRow}>
+                  <Text style={styles.bookingServiceTitle} numberOfLines={2}>
+                    {booking.service_name || booking.service}
+                  </Text>
+                  <View style={styles.confirmedBadge}>
+                    <Text style={styles.confirmedBadgeText}>
+                      {booking.status === "COMPLETED" ? "Completed" : "Confirmed"}
                     </Text>
                   </View>
                 </View>
 
-                {/* Visit Details */}
-                <View style={styles.detailsBox}>
-                  <View style={styles.detailRow}>
-                    <Ionicons name="time-outline" size={15} color={colors.primary} />
-                    <Text style={styles.detailText}>
-                      {new Date(booking.slot.start_at).toLocaleDateString("en-IN", {
-                        weekday: "short",
-                        month: "short",
-                        day: "numeric",
-                      })}{" "}
-                      • 10:00 AM - 12:00 PM
-                    </Text>
-                  </View>
-                  <View style={styles.detailRow}>
-                    <Ionicons name="location-outline" size={15} color={colors.primary} />
-                    <Text style={styles.detailText} numberOfLines={1}>
-                      {booking.address.line_1 || "Address provided"}
-                    </Text>
-                  </View>
-                </View>
+                <Text style={styles.bookingSlotText}>
+                  {booking.scheduled_date || "Wed, 18 Nov 2026"}
+                  {booking.scheduled_slot ? ` • ${booking.scheduled_slot}` : ""}
+                </Text>
 
-                {/* Start OTP if active */}
-                {Boolean(booking.start_otp_code && booking.status !== "COMPLETED") && (
-                  <View style={styles.otpBox}>
-                    <View>
-                      <Text style={styles.otpLabel}>START SERVICE OTP</Text>
-                      <Text style={styles.otpHint}>Share with technician when they arrive</Text>
-                    </View>
-                    <View style={styles.otpBadge}>
-                      <Text style={styles.otpCode}>{booking.start_otp_code}</Text>
-                    </View>
+                <View style={styles.bookingCardFooter}>
+                  <Text style={styles.bookingPrice}>
+                    {formatInr(booking.total_amount_paise ?? booking.price?.total_paise ?? 19900)}
+                  </Text>
+                  <View style={styles.trackActionRow}>
+                    <Text style={styles.trackActionText}>View Details</Text>
+                    <Ionicons name="chevron-forward" size={14} color={colors.primary} />
                   </View>
-                )}
-
-                {/* Technician Profile Card */}
-                {Boolean(booking.technician) && (
-                  <View style={styles.techCard}>
-                    <View style={styles.techAvatar}>
-                      <Ionicons name="person" size={18} color={colors.primary} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.techName}>{booking.technician?.name}</Text>
-                      <View style={styles.techSubRow}>
-                        <Ionicons name="star" size={11} color={colors.gold} />
-                        <Text style={styles.techRating}>
-                          {booking.technician?.rating || 4.9}
-                        </Text>
-                        <Text style={styles.techJobs}>
-                          • {booking.technician?.completed_jobs || 140}+ jobs completed
-                        </Text>
-                      </View>
-                    </View>
-                    {Boolean(booking.technician?.phone) && (
-                      <Pressable
-                        onPress={() => Linking.openURL(`tel:${booking.technician?.phone}`)}
-                        style={styles.callBtn}
-                      >
-                        <Ionicons name="call" size={16} color={colors.white} />
-                      </Pressable>
-                    )}
-                  </View>
-                )}
-
-                {/* Footer: Amount & Actions */}
-                <View style={styles.cardFooter}>
-                  <View>
-                    <Text style={styles.amountLabel}>Total Bill</Text>
-                    <Text style={styles.amountValue}>
-                      {formatInr(booking.price?.total_paise)}
-                    </Text>
-                  </View>
-
-                  {Boolean(booking.can_cancel && booking.status !== "CANCELLED") && (
-                    <Pressable
-                      onPress={() => handleCancelBooking(booking)}
-                      style={styles.cancelBtn}
-                    >
-                      <Text style={styles.cancelBtnText}>Cancel Visit</Text>
-                    </Pressable>
-                  )}
                 </View>
               </View>
-            );
-          })
+            </Pressable>
+          ))
         )}
       </ScrollView>
+
+      {/* ========================================================
+          SCREEN 18 & 19: LIVE TRACKING & BOOKING DETAILS MODAL
+          ======================================================== */}
+      {Boolean(activeTrackingBooking) && (
+        <Modal
+          visible={Boolean(activeTrackingBooking)}
+          animationType="slide"
+          transparent={false}
+          onRequestClose={() => setActiveTrackingBooking(null)}
+        >
+          <SafeAreaView style={styles.trackingSafeArea}>
+            {/* Modal Header */}
+            <View style={styles.trackingHeader}>
+              <Pressable
+                onPress={() => setActiveTrackingBooking(null)}
+                style={styles.trackingHeaderBackBtn}
+              >
+                <Ionicons name="arrow-back" size={24} color={colors.ink} />
+              </Pressable>
+              <Text style={styles.trackingHeaderTitle}>Booking Details</Text>
+              <View style={styles.inProgressPill}>
+                <Text style={styles.inProgressPillText}>In Progress</Text>
+              </View>
+            </View>
+
+            <ScrollView style={styles.trackingScroll} contentContainerStyle={styles.trackingContent}>
+              {/* Banner: "Our professional is on the way" */}
+              <View style={styles.onTheWayBanner}>
+                <Ionicons name="bicycle-outline" size={20} color={colors.primary} />
+                <Text style={styles.onTheWayText}>Our professional is on the way</Text>
+              </View>
+
+              {/* Simulated Live Route Map View */}
+              <View style={styles.mapSimulationContainer}>
+                {/* Background Map Grid & Roads */}
+                <View style={styles.mapRoadH1} />
+                <View style={styles.mapRoadH2} />
+                <View style={styles.mapRoadV1} />
+                <View style={styles.mapRoadV2} />
+
+                {/* Simulated SVG-style curved route line */}
+                <View style={styles.routeTrack}>
+                  <View style={styles.routePinStart}>
+                    <Ionicons name="navigate-circle" size={28} color={colors.primary} />
+                  </View>
+                  <View style={styles.routeDottedLine} />
+                  <View style={styles.routePinEnd}>
+                    <Ionicons name="home" size={20} color={colors.ink} />
+                  </View>
+                </View>
+
+                {/* Floating ETA Pill */}
+                <View style={styles.etaPill}>
+                  <Text style={styles.etaText}>Arriving in ~15 mins</Text>
+                </View>
+              </View>
+
+              {/* Technician Profile Card matching Screen 18 */}
+              <View style={styles.technicianCard}>
+                <View style={styles.technicianLeft}>
+                  <View style={styles.technicianAvatarCircle}>
+                    <Ionicons name="person" size={22} color={colors.primary} />
+                  </View>
+                  <View>
+                    <Text style={styles.technicianName}>
+                      {activeTrackingBooking?.technician?.display_name ||
+                        activeTrackingBooking?.technician?.name ||
+                        "Ramesh K."}
+                    </Text>
+                    <Text style={styles.technicianRole}>Service Professional</Text>
+                  </View>
+                </View>
+
+                <View style={styles.technicianActions}>
+                  <Pressable
+                    onPress={() =>
+                      handleCallTechnician(activeTrackingBooking?.technician?.phone)
+                    }
+                    style={styles.techIconBtn}
+                    accessibilityRole="button"
+                    accessibilityLabel="Call Professional"
+                  >
+                    <Ionicons name="call" size={17} color={colors.white} />
+                  </Pressable>
+                  <Pressable
+                    onPress={handleOpenChat}
+                    style={[styles.techIconBtn, { backgroundColor: colors.ink }]}
+                    accessibilityRole="button"
+                    accessibilityLabel="Chat with Professional"
+                  >
+                    <Ionicons name="chatbubble" size={16} color={colors.white} />
+                  </Pressable>
+                </View>
+              </View>
+
+              {/* Booking Details Section matching Screen 19 */}
+              <View style={styles.detailsCard}>
+                <View style={styles.detailItemRow}>
+                  <Image
+                    source={getBookingThumb(
+                      activeTrackingBooking?.service_name || activeTrackingBooking?.service
+                    )}
+                    style={styles.detailItemThumb}
+                    resizeMode="cover"
+                  />
+                  <View style={styles.detailItemTextWrap}>
+                    <Text style={styles.detailItemName}>
+                      {activeTrackingBooking?.service_name || activeTrackingBooking?.service}
+                    </Text>
+                    <Text style={styles.detailItemPrice}>
+                      {formatInr(
+                        activeTrackingBooking?.total_amount_paise ??
+                          activeTrackingBooking?.price?.total_paise ??
+                          19900
+                      )}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.detailDivider} />
+
+                {/* Date & Time */}
+                <View style={styles.detailMetaRow}>
+                  <Ionicons name="calendar-outline" size={18} color={colors.muted} />
+                  <View style={styles.detailMetaTextWrap}>
+                    <Text style={styles.detailMetaLabel}>Date &amp; Time</Text>
+                    <Text style={styles.detailMetaValue}>
+                      {activeTrackingBooking?.scheduled_date || "Wed, 18 Nov 2026"},{" "}
+                      {activeTrackingBooking?.scheduled_slot || "2:00 PM - 4:00 PM"}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Address */}
+                <View style={styles.detailMetaRow}>
+                  <Ionicons name="location-outline" size={18} color={colors.muted} />
+                  <View style={styles.detailMetaTextWrap}>
+                    <Text style={styles.detailMetaLabel}>Address</Text>
+                    <Text style={styles.detailMetaValue}>
+                      {activeTrackingBooking?.address?.line_1 ||
+                        "No. 12, 3rd Street, Anna Nagar, Chennai - 600040"}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.detailDivider} />
+
+                {/* Need Help link */}
+                <Pressable
+                  onPress={() => setIsHelpModalOpen(true)}
+                  style={styles.needHelpBtn}
+                >
+                  <Ionicons name="help-circle-outline" size={18} color={colors.primary} />
+                  <Text style={styles.needHelpBtnText}>Need Help? Contact Support</Text>
+                  <Ionicons name="chevron-forward" size={16} color={colors.muted} />
+                </Pressable>
+              </View>
+
+              {/* Rate Service Button */}
+              <Pressable
+                onPress={() => {
+                  if (activeTrackingBooking) {
+                    handleOpenRating(activeTrackingBooking);
+                  }
+                }}
+                style={styles.rateServiceBtn}
+              >
+                <Ionicons name="star" size={16} color={colors.white} />
+                <Text style={styles.rateServiceBtnText}>Rate Your Service</Text>
+              </Pressable>
+            </ScrollView>
+          </SafeAreaView>
+        </Modal>
+      )}
     </View>
   );
 }
@@ -267,238 +486,436 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.canvas,
   },
-  segmentContainer: {
+  header: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: 12,
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderLight,
+    height: 52,
+    justifyContent: "center",
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: colors.ink,
+  },
+  segmentWrapper: {
     flexDirection: "row",
     backgroundColor: colors.surface,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
     gap: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderLight,
   },
   segmentBtn: {
-    flex: 1,
+    paddingHorizontal: spacing.lg,
     paddingVertical: 8,
-    borderRadius: radii.md,
+    borderRadius: radii.pill,
     backgroundColor: colors.canvasWarm,
-    alignItems: "center",
   },
   segmentBtnActive: {
     backgroundColor: colors.primary,
   },
-  segmentText: {
+  segmentBtnText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: colors.muted,
+  },
+  segmentBtnTextActive: {
+    color: colors.white,
+    fontWeight: "700",
+  },
+  listScroll: {
+    flex: 1,
+  },
+  listContent: {
+    padding: spacing.lg,
+    paddingBottom: 90,
+    gap: spacing.md,
+  },
+  bookingCard: {
+    flexDirection: "row",
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    gap: spacing.md,
+    shadowColor: colors.ink,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  bookingThumb: {
+    width: 65,
+    height: 65,
+    borderRadius: radii.md,
+    backgroundColor: colors.canvasWarm,
+  },
+  bookingCardDetails: {
+    flex: 1,
+    justifyContent: "space-between",
+  },
+  bookingTopRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: spacing.xs,
+  },
+  bookingServiceTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: colors.ink,
+    flex: 1,
+    lineHeight: 18,
+  },
+  confirmedBadge: {
+    backgroundColor: colors.successBg,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radii.sm,
+  },
+  confirmedBadgeText: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: colors.success,
+  },
+  bookingSlotText: {
+    fontSize: 12,
+    color: colors.muted,
+    marginVertical: 4,
+  },
+  bookingCardFooter: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 2,
+  },
+  bookingPrice: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: colors.primary,
+  },
+  trackActionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
+  },
+  trackActionText: {
     fontSize: 12,
     fontWeight: "700",
-    color: colors.muted,
-  },
-  segmentTextActive: {
-    color: colors.white,
-  },
-  scrollContent: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    gap: spacing.md,
-    paddingBottom: spacing.xxxl,
-  },
-  loadingBox: {
-    paddingVertical: spacing.xxxl,
-    alignItems: "center",
-    gap: spacing.sm,
-  },
-  loadingText: {
-    fontSize: 13,
-    color: colors.muted,
+    color: colors.primary,
   },
   emptyBox: {
     alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: spacing.xxxl,
-    paddingHorizontal: spacing.xl,
-    gap: spacing.xs,
+    paddingVertical: 60,
+    gap: spacing.sm,
   },
   emptyTitle: {
     fontSize: 16,
     fontWeight: "700",
     color: colors.ink,
-    marginTop: spacing.sm,
   },
   emptySub: {
-    fontSize: 12,
+    fontSize: 13,
     color: colors.muted,
     textAlign: "center",
-    marginBottom: spacing.lg,
+    maxWidth: 260,
   },
-  bookNowBtn: {
+  bookNewBtn: {
+    marginTop: spacing.md,
     backgroundColor: colors.primary,
     paddingHorizontal: spacing.xl,
     paddingVertical: 10,
-    borderRadius: radii.md,
+    borderRadius: radii.pill,
   },
-  bookNowBtnText: {
+  bookNewBtnText: {
     color: colors.white,
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: "700",
   },
-  bookingCard: {
+
+  // Live Tracking Modal
+  trackingSafeArea: {
+    flex: 1,
+    backgroundColor: colors.surface,
+  },
+  trackingHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: spacing.lg,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderLight,
+    height: 52,
+  },
+  trackingHeaderBackBtn: {
+    width: 36,
+    height: 36,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  trackingHeaderTitle: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: colors.ink,
+  },
+  inProgressPill: {
+    backgroundColor: colors.successBg,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: radii.pill,
+  },
+  inProgressPillText: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: colors.success,
+  },
+  trackingScroll: {
+    flex: 1,
+  },
+  trackingContent: {
+    padding: spacing.lg,
+    paddingBottom: 40,
+    gap: spacing.lg,
+  },
+  onTheWayBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    backgroundColor: colors.primarySoft,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 10,
+    borderRadius: radii.md,
+  },
+  onTheWayText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: colors.primary,
+  },
+
+  // Simulated Map Container
+  mapSimulationContainer: {
+    width: "100%",
+    height: 180,
+    backgroundColor: "#E2E8F0",
+    borderRadius: radii.lg,
+    overflow: "hidden",
+    position: "relative",
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  mapRoadH1: {
+    position: "absolute",
+    top: 50,
+    left: 0,
+    right: 0,
+    height: 14,
+    backgroundColor: colors.white,
+  },
+  mapRoadH2: {
+    position: "absolute",
+    bottom: 50,
+    left: 0,
+    right: 0,
+    height: 14,
+    backgroundColor: colors.white,
+  },
+  mapRoadV1: {
+    position: "absolute",
+    left: 70,
+    top: 0,
+    bottom: 0,
+    width: 14,
+    backgroundColor: colors.white,
+  },
+  mapRoadV2: {
+    position: "absolute",
+    right: 70,
+    top: 0,
+    bottom: 0,
+    width: 14,
+    backgroundColor: colors.white,
+  },
+  routeTrack: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    backgroundColor: "rgba(255,255,255,0.92)",
+    paddingHorizontal: spacing.lg,
+    paddingVertical: 10,
+    borderRadius: radii.pill,
+    shadowColor: colors.ink,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  routePinStart: {},
+  routeDottedLine: {
+    width: 70,
+    height: 3,
+    backgroundColor: colors.primary,
+    borderRadius: 2,
+  },
+  routePinEnd: {},
+  etaPill: {
+    position: "absolute",
+    bottom: 10,
+    backgroundColor: colors.ink,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 4,
+    borderRadius: radii.pill,
+  },
+  etaText: {
+    color: colors.white,
+    fontSize: 11,
+    fontWeight: "700",
+  },
+
+  // Technician Card
+  technicianCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     backgroundColor: colors.surface,
     borderRadius: radii.lg,
     padding: spacing.md,
     borderWidth: 1,
-    borderColor: colors.border,
-    gap: spacing.sm,
+    borderColor: colors.borderLight,
   },
-  cardHeader: {
+  technicianLeft: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
+    alignItems: "center",
+    gap: spacing.md,
   },
-  refCode: {
-    fontSize: 10,
-    fontWeight: "800",
-    color: colors.primary,
-    letterSpacing: 0.5,
+  technicianAvatarCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.primarySoft,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  serviceName: {
+  technicianName: {
     fontSize: 15,
     fontWeight: "800",
     color: colors.ink,
+  },
+  technicianRole: {
+    fontSize: 12,
+    color: colors.muted,
     marginTop: 2,
   },
-  packageName: {
-    fontSize: 11,
-    color: colors.muted,
-    marginTop: 1,
-  },
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: radii.sm,
-  },
-  statusBadgeText: {
-    fontSize: 10,
-    fontWeight: "800",
-  },
-  detailsBox: {
-    backgroundColor: colors.canvasWarm,
-    borderRadius: radii.md,
-    padding: spacing.sm,
-    gap: 4,
-  },
-  detailRow: {
+  technicianActions: {
     flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
+    gap: spacing.sm,
   },
-  detailText: {
-    fontSize: 11,
-    color: colors.inkSecondary,
-    fontWeight: "500",
-  },
-  otpBox: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    backgroundColor: colors.primarySoft,
-    padding: spacing.sm,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: "rgba(128, 0, 32, 0.15)",
-  },
-  otpLabel: {
-    fontSize: 10,
-    fontWeight: "800",
-    color: colors.primary,
-  },
-  otpHint: {
-    fontSize: 9,
-    color: colors.muted,
-  },
-  otpBadge: {
+  techIconBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     backgroundColor: colors.primary,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 4,
-    borderRadius: radii.sm,
-  },
-  otpCode: {
-    fontSize: 16,
-    fontWeight: "900",
-    color: colors.white,
-    letterSpacing: 2,
-  },
-  techCard: {
-    flexDirection: "row",
     alignItems: "center",
-    backgroundColor: colors.canvas,
-    borderRadius: radii.md,
-    padding: spacing.sm,
+    justifyContent: "center",
+  },
+
+  // Details Card
+  detailsCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    padding: spacing.lg,
     borderWidth: 1,
     borderColor: colors.borderLight,
-    gap: spacing.sm,
+    gap: spacing.md,
   },
-  techAvatar: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: colors.primarySoft,
+  detailItemRow: {
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
+    gap: spacing.md,
   },
-  techName: {
-    fontSize: 12,
+  detailItemThumb: {
+    width: 50,
+    height: 50,
+    borderRadius: radii.md,
+    backgroundColor: colors.canvasWarm,
+  },
+  detailItemTextWrap: {
+    flex: 1,
+  },
+  detailItemName: {
+    fontSize: 14,
     fontWeight: "700",
     color: colors.ink,
   },
-  techSubRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 3,
-    marginTop: 1,
-  },
-  techRating: {
-    fontSize: 10,
-    fontWeight: "700",
-    color: colors.ink,
-  },
-  techJobs: {
-    fontSize: 10,
-    color: colors.muted,
-  },
-  callBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  cardFooter: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    borderTopWidth: 1,
-    borderTopColor: colors.borderLight,
-    paddingTop: spacing.sm,
+  detailItemPrice: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: colors.primary,
     marginTop: 2,
   },
-  amountLabel: {
-    fontSize: 10,
-    color: colors.muted,
+  detailDivider: {
+    height: 1,
+    backgroundColor: colors.borderLight,
   },
-  amountValue: {
-    fontSize: 15,
-    fontWeight: "800",
-    color: colors.ink,
+  detailMetaRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: spacing.md,
   },
-  cancelBtn: {
-    borderWidth: 1,
-    borderColor: colors.error,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 6,
-    borderRadius: radii.sm,
+  detailMetaTextWrap: {
+    flex: 1,
   },
-  cancelBtnText: {
+  detailMetaLabel: {
     fontSize: 11,
+    color: colors.muted,
+    fontWeight: "600",
+  },
+  detailMetaValue: {
+    fontSize: 13,
+    color: colors.ink,
+    fontWeight: "500",
+    marginTop: 2,
+    lineHeight: 18,
+  },
+  needHelpBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingTop: spacing.xs,
+  },
+  needHelpBtnText: {
+    flex: 1,
+    fontSize: 13,
     fontWeight: "700",
-    color: colors.error,
+    color: colors.primary,
+    marginLeft: spacing.sm,
+  },
+
+  // Rate Service Button
+  rateServiceBtn: {
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: colors.primary,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.sm,
+    shadowColor: colors.primaryDark,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  rateServiceBtnText: {
+    color: colors.white,
+    fontSize: 15,
+    fontWeight: "700",
   },
 });

@@ -4,10 +4,11 @@ import {
   ActivityIndicator,
   Alert,
   Linking,
+  Modal,
   Pressable,
+  SafeAreaView,
   ScrollView,
   StyleSheet,
-  Switch,
   Text,
   TextInput,
   View,
@@ -27,20 +28,21 @@ export function AccountScreen() {
     selectedPincode,
     setIsLocationModalOpen,
     setIsAuthOpen,
+    setIsIntroOpen,
+    setIsHelpModalOpen,
+    setActiveTab,
+    savedAddresses,
   } = useApp();
 
+  const [showAddressesModal, setShowAddressesModal] = useState(false);
+  const [showPaymentMethodsModal, setShowPaymentMethodsModal] = useState(false);
+  const [showBackendModal, setShowBackendModal] = useState(false);
+  const [showAboutModal, setShowAboutModal] = useState(false);
+
+  // Developer ping state
   const [pingLatency, setPingLatency] = useState<number | null>(null);
   const [testingPing, setTestingPing] = useState(false);
   const [customUrlInput, setCustomUrlInput] = useState("");
-  const [showCustomInput, setShowCustomInput] = useState(false);
-
-  // Notification Preferences
-  const [whatsappOptIn, setWhatsappOptIn] = useState(true);
-  const [smsOptIn, setSmsOptIn] = useState(true);
-
-  // Quick Sign In modal state
-  const [phoneInput, setPhoneInput] = useState("");
-  const [showLoginBox, setShowLoginBox] = useState(false);
 
   const handleTestPing = async (url?: string) => {
     setTestingPing(true);
@@ -76,267 +78,369 @@ export function AccountScreen() {
       return;
     }
     await handleSwitchBackend(trimmed);
-    setShowCustomInput(false);
   };
 
-  const handleQuickLogin = async () => {
-    const digits = phoneInput.replace(/\D/g, "");
-    if (digits.length !== 10) {
-      Alert.alert("Invalid Phone", "Please enter a valid 10-digit mobile number.");
-      return;
-    }
-    const phone_e164 = `+91${digits}`;
-
-    // Demo/Simulated tokens to allow smooth testing
-    await signIn(
-      { access: `cust_token_${Date.now()}`, refresh: `cust_refresh_${Date.now()}` },
-      { id: Date.now(), phone_e164, name: "NammaPros Customer", role: "CUSTOMER" }
-    );
-    setShowLoginBox(false);
-    Alert.alert("Signed In", `Welcome back! Signed in with ${phone_e164}`);
-  };
+  const displayName = user?.name || "Deepan D.";
+  const displayPhone = user?.phone_e164 || "+91 98765 43210";
+  const initials = displayName
+    .split(" ")
+    .map((p) => p[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.scrollContent}
-      showsVerticalScrollIndicator={false}
-    >
-      {/* 1. User Profile Header */}
-      <View style={styles.profileCard}>
-        <View style={styles.avatar}>
-          <Ionicons name="person" size={28} color={colors.primary} />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.userName}>
-            {user?.name || "Welcome, Guest"}
-          </Text>
-          <Text style={styles.userPhone}>
-            {user?.phone_e164 || "Sign in for saved addresses & booking tracking"}
-          </Text>
-          {user ? (
-            <View style={styles.verifiedTag}>
-              <Ionicons name="checkmark-circle" size={12} color={colors.success} />
-              <Text style={styles.verifiedTagText}>Verified Firebase Account</Text>
-            </View>
-          ) : (
+    <View style={styles.container}>
+      {/* ========================================================
+          SCREEN 21: PROFILE / MY ACCOUNT
+          ======================================================== */}
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>My Account</Text>
+      </View>
+
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+        {/* Profile Card matching Mockup */}
+        <View style={styles.profileCard}>
+          <View style={styles.avatarCircle}>
+            <Text style={styles.avatarInitials}>{initials || "DD"}</Text>
+          </View>
+          <View style={styles.profileTextWrap}>
+            <Text style={styles.profileName}>{displayName}</Text>
+            <Text style={styles.profilePhone}>{displayPhone}</Text>
+          </View>
+          {!user ? (
             <Pressable
               onPress={() => setIsAuthOpen(true)}
-              style={styles.loginBtn}
+              style={styles.signInBadgeBtn}
               accessibilityRole="button"
-              accessibilityLabel="Sign in with Firebase OTP"
+              accessibilityLabel="Sign In"
             >
-              <Ionicons name="key-outline" size={13} color={colors.primary} />
-              <Text style={styles.loginBtnText}>Sign In with Firebase OTP</Text>
+              <Text style={styles.signInBadgeText}>Sign In</Text>
+            </Pressable>
+          ) : (
+            <Pressable
+              onPress={() => {
+                Alert.alert("Sign Out", "Are you sure you want to sign out?", [
+                  { text: "Cancel", style: "cancel" },
+                  { text: "Sign Out", style: "destructive", onPress: signOut },
+                ]);
+              }}
+              style={styles.signOutSmallBtn}
+            >
+              <Ionicons name="log-out-outline" size={18} color={colors.primary} />
             </Pressable>
           )}
         </View>
-      </View>
 
-      {/* 2. Live Cloud Run Backend Selector */}
-      <View style={styles.sectionCard}>
-        <View style={styles.sectionHeader}>
-          <Ionicons name="cloud-done" size={20} color={colors.primary} />
-          <View style={{ flex: 1 }}>
-            <Text style={styles.sectionTitle}>Live Cloud Run Backend</Text>
-            <Text style={styles.sectionSub}>Manage active API endpoints and test latency</Text>
-          </View>
-        </View>
-
-        {/* Current Active URL */}
-        <View style={styles.activeUrlBox}>
-          <View style={styles.urlHeaderRow}>
-            <View style={styles.liveIndicator}>
-              <View style={styles.liveDot} />
-              <Text style={styles.liveText}>CONNECTED</Text>
-            </View>
-            <Pressable
-              onPress={() => handleTestPing()}
-              disabled={testingPing}
-              style={styles.pingBtn}
-            >
-              {testingPing ? (
-                <ActivityIndicator size="small" color={colors.primary} />
-              ) : (
-                <>
-                  <Ionicons name="speedometer-outline" size={13} color={colors.primary} />
-                  <Text style={styles.pingBtnText}>
-                    {pingLatency !== null ? `${pingLatency}ms` : "Test Ping"}
-                  </Text>
-                </>
-              )}
-            </Pressable>
-          </View>
-          <Text style={styles.activeUrlText} numberOfLines={2}>
-            {currentApiUrl}
-          </Text>
-        </View>
-
-        {/* Cloud Run Preset Buttons */}
-        <View style={styles.backendPresetContainer}>
+        {/* Menu Items matching Mockup */}
+        <View style={styles.menuContainer}>
+          {/* 1. My Bookings */}
           <Pressable
-            onPress={() => handleSwitchBackend(CLOUD_RUN_URL_1)}
-            style={[
-              styles.presetBtn,
-              currentApiUrl === CLOUD_RUN_URL_1 && styles.presetBtnActive,
-            ]}
+            onPress={() => setActiveTab("bookings")}
+            style={styles.menuItem}
+            accessibilityRole="button"
+            accessibilityLabel="My Bookings"
           >
-            <Ionicons
-              name={currentApiUrl === CLOUD_RUN_URL_1 ? "radio-button-on" : "radio-button-off"}
-              size={16}
-              color={currentApiUrl === CLOUD_RUN_URL_1 ? colors.primary : colors.muted}
-            />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.presetTitle}>Cloud Run 1 (Primary)</Text>
-              <Text style={styles.presetSub} numberOfLines={1}>
-                nammapros-api-production-177323361322
-              </Text>
+            <View style={styles.menuItemLeft}>
+              <View style={styles.menuIconCircle}>
+                <Ionicons name="calendar" size={18} color={colors.primary} />
+              </View>
+              <Text style={styles.menuItemText}>My Bookings</Text>
             </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.muted} />
           </Pressable>
 
+          {/* 2. Saved Addresses */}
           <Pressable
-            onPress={() => handleSwitchBackend(CLOUD_RUN_URL_2)}
-            style={[
-              styles.presetBtn,
-              currentApiUrl === CLOUD_RUN_URL_2 && styles.presetBtnActive,
-            ]}
+            onPress={() => setShowAddressesModal(true)}
+            style={styles.menuItem}
+            accessibilityRole="button"
+            accessibilityLabel="Saved Addresses"
           >
-            <Ionicons
-              name={currentApiUrl === CLOUD_RUN_URL_2 ? "radio-button-on" : "radio-button-off"}
-              size={16}
-              color={currentApiUrl === CLOUD_RUN_URL_2 ? colors.primary : colors.muted}
-            />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.presetTitle}>Cloud Run 2 (Secondary)</Text>
-              <Text style={styles.presetSub} numberOfLines={1}>
-                nammapros-api-production-xlexcj72qa
-              </Text>
+            <View style={styles.menuItemLeft}>
+              <View style={styles.menuIconCircle}>
+                <Ionicons name="location" size={18} color={colors.primary} />
+              </View>
+              <Text style={styles.menuItemText}>Saved Addresses</Text>
             </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.muted} />
+          </Pressable>
+
+          {/* 3. Payment Methods */}
+          <Pressable
+            onPress={() => setShowPaymentMethodsModal(true)}
+            style={styles.menuItem}
+            accessibilityRole="button"
+            accessibilityLabel="Payment Methods"
+          >
+            <View style={styles.menuItemLeft}>
+              <View style={styles.menuIconCircle}>
+                <Ionicons name="card" size={18} color={colors.primary} />
+              </View>
+              <Text style={styles.menuItemText}>Payment Methods</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.muted} />
+          </Pressable>
+
+          {/* 4. Help & Support */}
+          <Pressable
+            onPress={() => setIsHelpModalOpen(true)}
+            style={styles.menuItem}
+            accessibilityRole="button"
+            accessibilityLabel="Help & Support"
+          >
+            <View style={styles.menuItemLeft}>
+              <View style={styles.menuIconCircle}>
+                <Ionicons name="help-circle" size={18} color={colors.primary} />
+              </View>
+              <Text style={styles.menuItemText}>Help &amp; Support</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.muted} />
+          </Pressable>
+
+          {/* 5. About Namma Pros */}
+          <Pressable
+            onPress={() => setShowAboutModal(true)}
+            style={styles.menuItem}
+            accessibilityRole="button"
+            accessibilityLabel="About Namma Pros"
+          >
+            <View style={styles.menuItemLeft}>
+              <View style={styles.menuIconCircle}>
+                <Ionicons name="information-circle" size={18} color={colors.primary} />
+              </View>
+              <Text style={styles.menuItemText}>About Namma Pros</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.muted} />
+          </Pressable>
+
+          {/* 6. View Welcome Flow */}
+          <Pressable
+            onPress={() => setIsIntroOpen(true)}
+            style={styles.menuItem}
+            accessibilityRole="button"
+            accessibilityLabel="View Welcome Flow"
+          >
+            <View style={styles.menuItemLeft}>
+              <View style={styles.menuIconCircle}>
+                <Ionicons name="sparkles" size={18} color={colors.primary} />
+              </View>
+              <Text style={styles.menuItemText}>View Welcome Flow</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.muted} />
+          </Pressable>
+
+          {/* 7. Backend & API Settings */}
+          <Pressable
+            onPress={() => setShowBackendModal(true)}
+            style={styles.menuItem}
+            accessibilityRole="button"
+            accessibilityLabel="Backend & API Settings"
+          >
+            <View style={styles.menuItemLeft}>
+              <View style={styles.menuIconCircle}>
+                <Ionicons name="server" size={18} color={colors.primary} />
+              </View>
+              <Text style={styles.menuItemText}>Backend &amp; API Settings</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.muted} />
           </Pressable>
         </View>
 
-        {/* Custom URL Toggle */}
-        <Pressable
-          onPress={() => setShowCustomInput(!showCustomInput)}
-          style={styles.customToggleBtn}
+        {/* Brand Version */}
+        <View style={styles.versionFooter}>
+          <Text style={styles.versionBrand}>namma pros.</Text>
+          <Text style={styles.versionText}>Version 2.0 • Live Cloud Run Connected</Text>
+        </View>
+      </ScrollView>
+
+      {/* ========================================================
+          MODAL: SAVED ADDRESSES
+          ======================================================== */}
+      {showAddressesModal && (
+        <Modal
+          visible={showAddressesModal}
+          animationType="slide"
+          transparent={false}
+          onRequestClose={() => setShowAddressesModal(false)}
         >
-          <Text style={styles.customToggleText}>
-            {showCustomInput ? "Hide Custom URL" : "+ Set Custom Backend URL"}
-          </Text>
-        </Pressable>
-
-        {Boolean(showCustomInput) && (
-          <View style={styles.customInputRow}>
-            <TextInput
-              placeholder="https://your-api.run.app"
-              placeholderTextColor={colors.subtle}
-              value={customUrlInput}
-              onChangeText={setCustomUrlInput}
-              autoCapitalize="none"
-              style={styles.customInput}
-            />
-            <Pressable onPress={handleApplyCustomUrl} style={styles.customApplyBtn}>
-              <Text style={styles.customApplyBtnText}>Apply</Text>
-            </Pressable>
-          </View>
-        )}
-      </View>
-
-      {/* 3. Service Location Settings */}
-      <View style={styles.sectionCard}>
-        <View style={styles.sectionHeader}>
-          <Ionicons name="location-outline" size={20} color={colors.primary} />
-          <View style={{ flex: 1 }}>
-            <Text style={styles.sectionTitle}>Service City & Zone</Text>
-            <Text style={styles.sectionSub}>Available services and slots adapt to your city</Text>
-          </View>
-          <Pressable onPress={() => setIsLocationModalOpen(true)}>
-            <Text style={styles.changeLink}>Change</Text>
-          </Pressable>
-        </View>
-        <View style={styles.cityInfoRow}>
-          <Text style={styles.cityLabel}>{selectedCity}</Text>
-          <Text style={styles.pinLabel}>Pincode: {selectedPincode}</Text>
-        </View>
-      </View>
-
-      {/* 4. Notification Preferences */}
-      <View style={styles.sectionCard}>
-        <View style={styles.sectionHeader}>
-          <Ionicons name="notifications-outline" size={20} color={colors.primary} />
-          <View style={{ flex: 1 }}>
-            <Text style={styles.sectionTitle}>Notification Alerts</Text>
-            <Text style={styles.sectionSub}>Booking status, technician arrival, and receipts</Text>
-          </View>
-        </View>
-        <View style={styles.prefRow}>
-          <View>
-            <Text style={styles.prefTitle}>WhatsApp Updates</Text>
-            <Text style={styles.prefSub}>Instant technician ETA & OTP notifications</Text>
-          </View>
-          <Switch
-            value={whatsappOptIn}
-            onValueChange={setWhatsappOptIn}
-            trackColor={{ false: colors.border, true: colors.primary }}
-          />
-        </View>
-        <View style={styles.prefRow}>
-          <View>
-            <Text style={styles.prefTitle}>SMS Alerts</Text>
-            <Text style={styles.prefSub}>Booking confirmation and invoice links</Text>
-          </View>
-          <Switch
-            value={smsOptIn}
-            onValueChange={setSmsOptIn}
-            trackColor={{ false: colors.border, true: colors.primary }}
-          />
-        </View>
-      </View>
-
-      {/* 5. Refer & Earn ₹200 Card */}
-      <View style={styles.referralCard}>
-        <View style={styles.referralIcon}>
-          <Ionicons name="gift-outline" size={24} color={colors.primary} />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.referralTitle}>Refer Friends & Earn ₹200</Text>
-          <Text style={styles.referralSub}>
-            Share code “NAMP200” with friends. They get ₹100 off, you get ₹200 wallet credits!
-          </Text>
-        </View>
-      </View>
-
-      {/* 6. Help & Support */}
-      <View style={styles.sectionCard}>
-        <Pressable
-          onPress={() => Linking.openURL("mailto:support@nammapros.com")}
-          style={styles.linkRow}
-        >
-          <Ionicons name="mail-outline" size={18} color={colors.ink} />
-          <Text style={styles.linkRowText}>Email Support (support@nammapros.com)</Text>
-          <Ionicons name="chevron-forward" size={16} color={colors.muted} />
-        </Pressable>
-        <Pressable
-          onPress={() => Linking.openURL("tel:+918001234567")}
-          style={styles.linkRow}
-        >
-          <Ionicons name="call-outline" size={18} color={colors.ink} />
-          <Text style={styles.linkRowText}>Helpline (1800-123-4567)</Text>
-          <Ionicons name="chevron-forward" size={16} color={colors.muted} />
-        </Pressable>
-      </View>
-
-      {/* 7. Sign Out */}
-      {Boolean(user) && (
-        <Pressable onPress={signOut} style={styles.signOutBtn}>
-          <Ionicons name="log-out-outline" size={18} color={colors.error} />
-          <Text style={styles.signOutBtnText}>Sign Out</Text>
-        </Pressable>
+          <SafeAreaView style={styles.modalSafeArea}>
+            <View style={styles.modalHeader}>
+              <Pressable
+                onPress={() => setShowAddressesModal(false)}
+                style={styles.modalBackBtn}
+              >
+                <Ionicons name="arrow-back" size={24} color={colors.ink} />
+              </Pressable>
+              <Text style={styles.modalTitle}>Saved Addresses</Text>
+              <View style={{ width: 36 }} />
+            </View>
+            <ScrollView style={styles.modalScroll} contentContainerStyle={styles.modalContent}>
+              {savedAddresses.map((addr) => (
+                <View key={addr.id} style={styles.savedAddrCard}>
+                  <View style={styles.savedAddrHeader}>
+                    <Ionicons name="home" size={18} color={colors.primary} />
+                    <Text style={styles.savedAddrLabel}>{addr.label || "Address"}</Text>
+                  </View>
+                  <Text style={styles.savedAddrLine}>{addr.line_1}</Text>
+                </View>
+              ))}
+            </ScrollView>
+          </SafeAreaView>
+        </Modal>
       )}
 
-      {/* App Version */}
-      <Text style={styles.versionText}>NammaPros Customer App v1.0.0 (Expo React Native)</Text>
-    </ScrollView>
+      {/* ========================================================
+          MODAL: PAYMENT METHODS
+          ======================================================== */}
+      {showPaymentMethodsModal && (
+        <Modal
+          visible={showPaymentMethodsModal}
+          animationType="slide"
+          transparent={false}
+          onRequestClose={() => setShowPaymentMethodsModal(false)}
+        >
+          <SafeAreaView style={styles.modalSafeArea}>
+            <View style={styles.modalHeader}>
+              <Pressable
+                onPress={() => setShowPaymentMethodsModal(false)}
+                style={styles.modalBackBtn}
+              >
+                <Ionicons name="arrow-back" size={24} color={colors.ink} />
+              </Pressable>
+              <Text style={styles.modalTitle}>Payment Methods</Text>
+              <View style={{ width: 36 }} />
+            </View>
+            <ScrollView style={styles.modalScroll} contentContainerStyle={styles.modalContent}>
+              <View style={styles.paymentMethodCard}>
+                <Ionicons name="flash" size={22} color={colors.primary} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.paymentMethodTitle}>UPI (Instant Pay)</Text>
+                  <Text style={styles.paymentMethodSub}>Google Pay, PhonePe, Paytm</Text>
+                </View>
+                <Ionicons name="checkmark-circle" size={20} color={colors.success} />
+              </View>
+
+              <View style={styles.paymentMethodCard}>
+                <Ionicons name="card" size={22} color={colors.primary} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.paymentMethodTitle}>Debit / Credit Card</Text>
+                  <Text style={styles.paymentMethodSub}>Visa, MasterCard, RuPay</Text>
+                </View>
+              </View>
+
+              <View style={styles.paymentMethodCard}>
+                <Ionicons name="cash" size={22} color={colors.primary} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.paymentMethodTitle}>Pay After Service</Text>
+                  <Text style={styles.paymentMethodSub}>Pay technician via UPI QR code</Text>
+                </View>
+              </View>
+            </ScrollView>
+          </SafeAreaView>
+        </Modal>
+      )}
+
+      {/* ========================================================
+          MODAL: BACKEND API SETTINGS
+          ======================================================== */}
+      {showBackendModal && (
+        <Modal
+          visible={showBackendModal}
+          animationType="slide"
+          transparent={false}
+          onRequestClose={() => setShowBackendModal(false)}
+        >
+          <SafeAreaView style={styles.modalSafeArea}>
+            <View style={styles.modalHeader}>
+              <Pressable
+                onPress={() => setShowBackendModal(false)}
+                style={styles.modalBackBtn}
+              >
+                <Ionicons name="arrow-back" size={24} color={colors.ink} />
+              </Pressable>
+              <Text style={styles.modalTitle}>Backend &amp; API Settings</Text>
+              <View style={{ width: 36 }} />
+            </View>
+            <ScrollView style={styles.modalScroll} contentContainerStyle={styles.modalContent}>
+              <View style={styles.backendCard}>
+                <Text style={styles.backendHeading}>Active Backend URL</Text>
+                <Text style={styles.backendUrlText}>{currentApiUrl}</Text>
+
+                <Pressable
+                  onPress={() => handleTestPing()}
+                  disabled={testingPing}
+                  style={styles.pingBtn}
+                >
+                  {testingPing ? (
+                    <ActivityIndicator size="small" color={colors.white} />
+                  ) : (
+                    <Text style={styles.pingBtnText}>Test Backend Ping</Text>
+                  )}
+                </Pressable>
+
+                {pingLatency !== null && (
+                  <Text style={styles.pingResultText}>
+                    Latency: {pingLatency} ms (Healthy)
+                  </Text>
+                )}
+              </View>
+
+              <View style={styles.switchBox}>
+                <Text style={styles.switchBoxTitle}>Switch Deployed Endpoints</Text>
+                <Pressable
+                  onPress={() => handleSwitchBackend(CLOUD_RUN_URL_1)}
+                  style={styles.switchBtn}
+                >
+                  <Text style={styles.switchBtnText}>Cloud Run Production (Active)</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => handleSwitchBackend(CLOUD_RUN_URL_2)}
+                  style={styles.switchBtn}
+                >
+                  <Text style={styles.switchBtnText}>Cloud Run Direct</Text>
+                </Pressable>
+              </View>
+            </ScrollView>
+          </SafeAreaView>
+        </Modal>
+      )}
+
+      {/* ========================================================
+          MODAL: ABOUT
+          ======================================================== */}
+      {showAboutModal && (
+        <Modal
+          visible={showAboutModal}
+          animationType="slide"
+          transparent={false}
+          onRequestClose={() => setShowAboutModal(false)}
+        >
+          <SafeAreaView style={styles.modalSafeArea}>
+            <View style={styles.modalHeader}>
+              <Pressable
+                onPress={() => setShowAboutModal(false)}
+                style={styles.modalBackBtn}
+              >
+                <Ionicons name="arrow-back" size={24} color={colors.ink} />
+              </Pressable>
+              <Text style={styles.modalTitle}>About Namma Pros</Text>
+              <View style={{ width: 36 }} />
+            </View>
+            <ScrollView style={styles.modalScroll} contentContainerStyle={styles.modalContent}>
+              <Text style={styles.aboutHeading}>namma pros.</Text>
+              <Text style={styles.aboutTagline}>Your Home. Our Expertise.</Text>
+              <Text style={styles.aboutParagraph}>
+                NammaPros is Chennai and Coimbatore&apos;s leading on-demand home services
+                platform. We deliver upfront transparent pricing, background-verified
+                professionals, direct slot booking, and an ironclad 30-Day Rework Guarantee.
+              </Text>
+            </ScrollView>
+          </SafeAreaView>
+        </Modal>
+      )}
+    </View>
   );
 }
 
@@ -345,12 +449,30 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.canvas,
   },
-  scrollContent: {
+  header: {
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    gap: spacing.md,
-    paddingBottom: spacing.xxxl,
+    paddingVertical: 12,
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderLight,
+    height: 52,
+    justifyContent: "center",
   },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: colors.ink,
+  },
+  scroll: {
+    flex: 1,
+  },
+  content: {
+    padding: spacing.xl,
+    paddingBottom: 90,
+    gap: spacing.lg,
+  },
+
+  // Profile Card matching Screen 21
   profileCard: {
     flexDirection: "row",
     alignItems: "center",
@@ -358,334 +480,249 @@ const styles = StyleSheet.create({
     borderRadius: radii.xl,
     padding: spacing.lg,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.borderLight,
     gap: spacing.md,
+    shadowColor: colors.ink,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
   },
-  avatar: {
+  avatarCircle: {
     width: 54,
     height: 54,
     borderRadius: 27,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarInitials: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: colors.white,
+  },
+  profileTextWrap: {
+    flex: 1,
+  },
+  profileName: {
+    fontSize: 17,
+    fontWeight: "800",
+    color: colors.ink,
+  },
+  profilePhone: {
+    fontSize: 13,
+    color: colors.muted,
+    marginTop: 2,
+  },
+  signInBadgeBtn: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 6,
+    borderRadius: radii.pill,
+  },
+  signInBadgeText: {
+    color: colors.white,
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  signOutSmallBtn: {
+    padding: spacing.sm,
+  },
+
+  // Menu List
+  menuContainer: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.xl,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    overflow: "hidden",
+  },
+  menuItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderLight,
+  },
+  menuItemLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+  },
+  menuIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: colors.primarySoft,
     alignItems: "center",
     justifyContent: "center",
   },
-  userName: {
-    fontSize: 16,
-    fontWeight: "800",
+  menuItemText: {
+    fontSize: 15,
+    fontWeight: "600",
     color: colors.ink,
   },
-  userPhone: {
+
+  versionFooter: {
+    alignItems: "center",
+    paddingVertical: spacing.lg,
+    gap: 4,
+  },
+  versionBrand: {
+    fontSize: 16,
+    fontWeight: "900",
+    color: colors.ink,
+    letterSpacing: -0.3,
+  },
+  versionText: {
+    fontSize: 11,
+    color: colors.muted,
+  },
+
+  // Modals generic
+  modalSafeArea: {
+    flex: 1,
+    backgroundColor: colors.surface,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: spacing.lg,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderLight,
+    height: 52,
+  },
+  modalBackBtn: {
+    width: 36,
+    height: 36,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalTitle: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: colors.ink,
+  },
+  modalScroll: {
+    flex: 1,
+  },
+  modalContent: {
+    padding: spacing.xl,
+    gap: spacing.md,
+  },
+  savedAddrCard: {
+    backgroundColor: colors.canvasWarm,
+    borderRadius: radii.lg,
+    padding: spacing.lg,
+    gap: spacing.xs,
+  },
+  savedAddrHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+  },
+  savedAddrLabel: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: colors.ink,
+  },
+  savedAddrLine: {
+    fontSize: 13,
+    color: colors.muted,
+    marginTop: 2,
+    lineHeight: 18,
+  },
+  paymentMethodCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: colors.canvasWarm,
+    borderRadius: radii.lg,
+    padding: spacing.lg,
+    gap: spacing.md,
+  },
+  paymentMethodTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: colors.ink,
+  },
+  paymentMethodSub: {
     fontSize: 12,
     color: colors.muted,
     marginTop: 2,
   },
-  verifiedTag: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    marginTop: 6,
-  },
-  verifiedTagText: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: colors.success,
-  },
-  loginBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    alignSelf: "flex-start",
-    backgroundColor: colors.primarySoft,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 6,
-    borderRadius: radii.sm,
-    marginTop: 6,
-  },
-  loginBtnText: {
-    fontSize: 11,
-    fontWeight: "800",
-    color: colors.primary,
-  },
-  loginFormBox: {
-    backgroundColor: colors.surface,
+  backendCard: {
+    backgroundColor: colors.canvasWarm,
     borderRadius: radii.lg,
     padding: spacing.lg,
-    borderWidth: 1,
-    borderColor: colors.primary,
-    gap: spacing.xs,
-  },
-  loginFormTitle: {
-    fontSize: 14,
-    fontWeight: "800",
-    color: colors.ink,
-  },
-  loginFormSub: {
-    fontSize: 11,
-    color: colors.muted,
-    marginBottom: spacing.xs,
-  },
-  phoneInputRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: colors.canvasWarm,
-    borderRadius: radii.md,
-    paddingHorizontal: spacing.md,
-    height: 44,
     gap: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
   },
-  countryCode: {
+  backendHeading: {
+    fontSize: 12,
+    color: colors.muted,
+    fontWeight: "600",
+  },
+  backendUrlText: {
     fontSize: 13,
+    color: colors.ink,
     fontWeight: "700",
-    color: colors.ink,
   },
-  phoneInput: {
-    flex: 1,
-    fontSize: 13,
-    color: colors.ink,
-  },
-  submitLoginBtn: {
+  pingBtn: {
     backgroundColor: colors.primary,
     paddingVertical: 10,
     borderRadius: radii.md,
     alignItems: "center",
     marginTop: spacing.xs,
   },
-  submitLoginBtnText: {
+  pingBtnText: {
     color: colors.white,
+    fontSize: 13,
     fontWeight: "700",
+  },
+  pingResultText: {
     fontSize: 12,
+    color: colors.success,
+    fontWeight: "700",
+    marginTop: 4,
   },
-  sectionCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radii.lg,
-    padding: spacing.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    gap: spacing.md,
-  },
-  sectionHeader: {
-    flexDirection: "row",
-    alignItems: "flex-start",
+  switchBox: {
     gap: spacing.sm,
+    marginTop: spacing.md,
   },
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: "800",
+  switchBoxTitle: {
+    fontSize: 13,
+    fontWeight: "700",
     color: colors.ink,
   },
-  sectionSub: {
-    fontSize: 11,
-    color: colors.muted,
-    marginTop: 1,
-  },
-  changeLink: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: colors.primary,
-  },
-  activeUrlBox: {
-    backgroundColor: colors.canvasWarm,
-    borderRadius: radii.md,
-    padding: spacing.md,
-    gap: 6,
+  switchBtn: {
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.borderLight,
-  },
-  urlHeaderRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  liveIndicator: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-  },
-  liveDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.success,
-  },
-  liveText: {
-    fontSize: 10,
-    fontWeight: "800",
-    color: colors.success,
-    letterSpacing: 0.5,
-  },
-  pingBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: colors.surface,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: radii.sm,
-    gap: 4,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  pingBtnText: {
-    fontSize: 10,
-    fontWeight: "700",
-    color: colors.primary,
-  },
-  activeUrlText: {
-    fontSize: 11,
-    color: colors.inkSecondary,
-    fontFamily: "monospace",
-  },
-  backendPresetContainer: {
-    gap: spacing.xs,
-  },
-  presetBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: colors.canvas,
-    borderRadius: radii.md,
-    padding: spacing.md,
-    gap: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  presetBtnActive: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primarySoft,
-  },
-  presetTitle: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: colors.ink,
-  },
-  presetSub: {
-    fontSize: 10,
-    color: colors.muted,
-  },
-  customToggleBtn: {
-    alignSelf: "flex-start",
-  },
-  customToggleText: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: colors.primary,
-  },
-  customInputRow: {
-    flexDirection: "row",
-    gap: spacing.sm,
-  },
-  customInput: {
-    flex: 1,
-    height: 40,
-    backgroundColor: colors.canvas,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.md,
-    paddingHorizontal: spacing.md,
-    fontSize: 11,
-    color: colors.ink,
-  },
-  customApplyBtn: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: spacing.lg,
-    justifyContent: "center",
-    borderRadius: radii.md,
-  },
-  customApplyBtnText: {
-    color: colors.white,
-    fontWeight: "700",
-    fontSize: 12,
-  },
-  cityInfoRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    backgroundColor: colors.canvasWarm,
     padding: spacing.md,
     borderRadius: radii.md,
   },
-  cityLabel: {
+  switchBtnText: {
     fontSize: 13,
-    fontWeight: "700",
     color: colors.ink,
-  },
-  pinLabel: {
-    fontSize: 12,
-    color: colors.muted,
-  },
-  prefRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  prefTitle: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: colors.ink,
-  },
-  prefSub: {
-    fontSize: 10,
-    color: colors.muted,
-  },
-  referralCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: colors.goldBg,
-    borderRadius: radii.lg,
-    padding: spacing.lg,
-    borderWidth: 1,
-    borderColor: "rgba(200, 163, 91, 0.3)",
-    gap: spacing.md,
-  },
-  referralIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.surface,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  referralTitle: {
-    fontSize: 13,
-    fontWeight: "800",
-    color: colors.ink,
-  },
-  referralSub: {
-    fontSize: 11,
-    color: colors.muted,
-    lineHeight: 16,
-    marginTop: 2,
-  },
-  linkRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: spacing.xs,
-    gap: spacing.sm,
-  },
-  linkRowText: {
-    flex: 1,
-    fontSize: 12,
     fontWeight: "600",
+  },
+  aboutHeading: {
+    fontSize: 24,
+    fontWeight: "900",
     color: colors.ink,
   },
-  signOutBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.errorBg,
-    paddingVertical: 12,
-    borderRadius: radii.md,
-    gap: 6,
+  aboutTagline: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: colors.primary,
+    marginBottom: spacing.md,
   },
-  signOutBtnText: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: colors.error,
-  },
-  versionText: {
-    textAlign: "center",
-    fontSize: 11,
-    color: colors.subtle,
-    marginTop: spacing.sm,
+  aboutParagraph: {
+    fontSize: 14,
+    color: colors.inkSecondary,
+    lineHeight: 22,
   },
 });

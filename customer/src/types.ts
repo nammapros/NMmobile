@@ -101,7 +101,7 @@ export interface Address {
   landmark?: string;
   latitude?: number | null;
   longitude?: number | null;
-  is_default: boolean;
+  is_default?: boolean;
 }
 
 export interface Slot {
@@ -142,6 +142,7 @@ export interface Quote {
 
 export interface TechnicianInfo {
   name: string;
+  display_name?: string;
   phone?: string;
   status: string;
   rating?: number | null;
@@ -162,6 +163,8 @@ export interface Booking {
   payment_status: "PENDING" | "PAID" | "FAILED" | "PARTIALLY_PAID" | string;
   service: string;
   package: string;
+  service_name?: string;
+  package_name?: string;
   package_id?: string;
   address_id?: string;
   address: {
@@ -175,6 +178,9 @@ export interface Booking {
     start_at: string;
     end_at: string;
   };
+  scheduled_date?: string;
+  scheduled_slot?: string;
+  scheduled_at?: string;
   price: {
     lines: { code: string; amount_paise: number }[];
     total_paise: number;
@@ -182,6 +188,7 @@ export interface Booking {
     remaining_balance_paise?: number;
     currency: string;
   };
+  total_amount_paise?: number;
   technician?: TechnicianInfo | null;
   start_otp_code?: string;
   problem_description?: string;

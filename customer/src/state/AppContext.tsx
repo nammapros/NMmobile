@@ -51,6 +51,22 @@ interface AppContextType {
   setIsAuthOpen: (open: boolean) => void;
   isLocationModalOpen: boolean;
   setIsLocationModalOpen: (open: boolean) => void;
+  isIntroOpen: boolean;
+  setIsIntroOpen: (open: boolean) => void;
+  isHelpModalOpen: boolean;
+  setIsHelpModalOpen: (open: boolean) => void;
+  isRatingModalOpen: boolean;
+  setIsRatingModalOpen: (open: boolean) => void;
+  ratingBooking: Booking | null;
+  setRatingBooking: (b: Booking | null) => void;
+  activeTrackingBooking: Booking | null;
+  setActiveTrackingBooking: (b: Booking | null) => void;
+
+  // Addresses
+  savedAddresses: Address[];
+  selectedAddressId: string;
+  setSelectedAddressId: (id: string) => void;
+  addSavedAddress: (addr: Address) => void;
 
   // User Auth
   user: UserProfile | null;
@@ -86,6 +102,48 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
+  const [isIntroOpen, setIsIntroOpen] = useState(false);
+  const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
+  const [isRatingModalOpen, setIsRatingModalOpen] = useState(false);
+  const [ratingBooking, setRatingBooking] = useState<Booking | null>(null);
+  const [activeTrackingBooking, setActiveTrackingBooking] = useState<Booking | null>(null);
+
+  const [savedAddresses, setSavedAddresses] = useState<Address[]>([
+    {
+      id: "addr-home",
+      label: "Home",
+      contact_name: "Deepan D.",
+      contact_phone: "+91 98765 43210",
+      house_flat: "No. 12",
+      street: "3rd Street",
+      locality: "Anna Nagar",
+      city: "Chennai",
+      state: "Tamil Nadu",
+      postal_code: "600040",
+      line_1: "No. 12, 3rd Street, Anna Nagar, Chennai - 600040",
+      is_default: true,
+    },
+    {
+      id: "addr-office",
+      label: "Office",
+      contact_name: "Deepan D.",
+      contact_phone: "+91 98765 43210",
+      house_flat: "A-203",
+      street: "IT Park Road",
+      locality: "Guindy",
+      city: "Chennai",
+      state: "Tamil Nadu",
+      postal_code: "600032",
+      line_1: "A-203, IT Park Road, Guindy, Chennai - 600032",
+      is_default: false,
+    },
+  ]);
+  const [selectedAddressId, setSelectedAddressId] = useState("addr-home");
+
+  const addSavedAddress = (addr: Address) => {
+    setSavedAddresses((prev) => [addr, ...prev]);
+    setSelectedAddressId(addr.id);
+  };
 
   const [user, setUser] = useState<UserProfile | null>(null);
   const [tokens, setTokens] = useState<Tokens | null>(null);
@@ -214,6 +272,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setIsAuthOpen,
         isLocationModalOpen,
         setIsLocationModalOpen,
+        isIntroOpen,
+        setIsIntroOpen,
+        isHelpModalOpen,
+        setIsHelpModalOpen,
+        isRatingModalOpen,
+        setIsRatingModalOpen,
+        ratingBooking,
+        setRatingBooking,
+        activeTrackingBooking,
+        setActiveTrackingBooking,
+        savedAddresses,
+        selectedAddressId,
+        setSelectedAddressId,
+        addSavedAddress,
         user,
         tokens,
         signIn,

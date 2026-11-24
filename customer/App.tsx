@@ -16,9 +16,12 @@ import { formatInr } from "./src/components/ServiceCard";
 import { AccountScreen } from "./src/screens/AccountScreen";
 import { BookingsScreen } from "./src/screens/BookingsScreen";
 import { CartModal } from "./src/screens/CartModal";
+import { HelpSupportModal } from "./src/screens/HelpSupportModal";
 import { HomeScreen } from "./src/screens/HomeScreen";
+import { IntroModal } from "./src/screens/IntroModal";
 import { LocationModal } from "./src/screens/LocationModal";
 import { OtpModal } from "./src/screens/OtpModal";
+import { RatingModal } from "./src/screens/RatingModal";
 import { ServiceDetailModal } from "./src/screens/ServiceDetailModal";
 import { ServicesScreen } from "./src/screens/ServicesScreen";
 import { AppProvider, useApp } from "./src/state/AppContext";
@@ -78,6 +81,9 @@ function MainNavigator() {
         <CartModal />
         <LocationModal />
         <OtpModal />
+        <IntroModal />
+        <RatingModal />
+        <HelpSupportModal />
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

@@ -1,15 +1,17 @@
 import { Ionicons } from "@expo/vector-icons";
 import React, { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
+  Image,
   Modal,
   Pressable,
+  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
 import { api } from "../api";
+import { getServiceImage } from "../assets";
 import { formatInr } from "../components/ServiceCard";
 import { useApp } from "../state/AppContext";
 import { colors, radii, spacing } from "../theme";
@@ -46,7 +48,7 @@ export function ServiceDetailModal() {
         }
       })
       .catch(() => {
-        // Fallback to detailService
+        // Keep fallback
       })
       .finally(() => {
         if (active) setLoadingLive(false);
@@ -63,473 +65,382 @@ export function ServiceDetailModal() {
   const packages: Package[] =
     currentService.packages && currentService.packages.length > 0
       ? currentService.packages
-      : detailService.packages && detailService.packages.length > 0
-      ? detailService.packages
       : [
           {
             id: `pkg-${detailService.id}-std`,
-            name: "Standard Service",
+            name: "Standard Inspection & Service",
             pricing_model: "FIXED_PRICE",
             duration_minutes: 60,
             inclusions: [
-              "Deep cleaning of internal filters and cooling coils",
-              "Checking refrigerant pressure and gas leak inspection",
-              "Drain pipe clearing and blower wheel flush",
-              "Final performance testing and cooling verification",
+              "Inspection & issue diagnosis",
+              "Applicable for all major brands",
+              `Service charge: ${formatInr(detailService.starting_price_paise ?? 19900)}`,
+              "30-Day Rework Guarantee included",
             ],
-            exclusions: [
-              "Cost of spare parts if replacement is required",
-              "Refrigerant top-up gas charges",
-              "Outdoor unit dismounting or ladder work above 10ft",
-            ],
-            price_paise: detailService.starting_price_paise ?? 49900,
-          },
-          {
-            id: `pkg-${detailService.id}-premium`,
-            name: "Deep Foam Jet Wash",
-            pricing_model: "FIXED_PRICE",
-            duration_minutes: 90,
-            inclusions: [
-              "High-pressure specialized foam jet coil cleaning",
-              "Anti-bacterial sanitized chemical coating",
-              "Outdoor condenser power-wash",
-              "Comprehensive 30-day post-service service warranty",
-            ],
-            exclusions: ["Replacement copper pipes", "Electrical board rewiring"],
-            price_paise: (detailService.starting_price_paise ?? 49900) + 30000,
+            exclusions: ["Cost of spare parts if required"],
+            price_paise: detailService.starting_price_paise ?? 19900,
           },
         ];
 
   const activePkg = packages[selectedPkgIndex] || packages[0];
+  const pricePaise = activePkg.price_paise ?? detailService.starting_price_paise ?? 19900;
 
-  const inCart = cartItems.find(
+  const cartItem = cartItems.find(
     (item) => item.service.id === detailService.id && item.pkg.id === activePkg.id
   );
-
-  const pricePaise = activePkg.price_paise ?? currentService.starting_price_paise ?? detailService.starting_price_paise ?? 49900;
+  const inCartCount = cartItem?.quantity ?? 0;
 
   const handleAddToCart = () => {
-    addToCart(currentService, activePkg, 1);
+    addToCart(detailService, activePkg, 1);
   };
+
+  const handleIncrease = () => {
+    updateQuantity(detailService.id, activePkg.id, 1);
+  };
+
+  const handleDecrease = () => {
+    updateQuantity(detailService.id, activePkg.id, -1);
+  };
+
+  // Bullet items to display matching Screen 9 & 10
+  const displayBullets =
+    activePkg.inclusions && activePkg.inclusions.length > 0
+      ? activePkg.inclusions
+      : [
+          "Inspection & issue diagnosis",
+          "Applicable for all major brands",
+          `Service charge: ${formatInr(pricePaise)}`,
+          "30-Day Rework Guarantee",
+        ];
 
   return (
     <Modal
       visible={Boolean(detailService)}
       animationType="slide"
-      transparent
+      transparent={false}
       onRequestClose={() => setDetailService(null)}
     >
-      <View style={styles.overlay}>
-        <Pressable style={styles.backdrop} onPress={() => setDetailService(null)} />
-        <View style={styles.sheet}>
-          {/* Handle */}
-          <View style={styles.handle} />
-
-          {/* Header */}
-          <View style={styles.header}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.categoryBadge}>
-                {detailService.category_name || "NAMMAPROS SERVICE"}
-              </Text>
-              <Text style={styles.title}>{detailService.name}</Text>
-            </View>
+      <SafeAreaView style={styles.safeArea}>
+        {/* ========================================================
+            SCREEN 9 & 10: SERVICE DETAIL
+            ======================================================== */}
+        <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+          {/* Top Hero Photo Container with floating Back Button */}
+          <View style={styles.heroImageContainer}>
+            <Image
+              source={getServiceImage(detailService)}
+              style={styles.heroImage}
+              resizeMode="cover"
+            />
             <Pressable
               onPress={() => setDetailService(null)}
-              style={styles.closeBtn}
+              style={styles.floatingBackBtn}
               accessibilityRole="button"
-              accessibilityLabel="Close"
+              accessibilityLabel="Back"
             >
-              <Ionicons name="close" size={22} color={colors.ink} />
+              <Ionicons name="arrow-back" size={22} color={colors.ink} />
             </Pressable>
           </View>
 
-          {/* Scrollable Content */}
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.scrollContent}
-          >
-            {/* Meta Row: Rating + Duration */}
-            <View style={styles.metaRow}>
-              <View style={styles.ratingBadge}>
-                <Ionicons name="star" size={13} color={colors.gold} />
-                <Text style={styles.ratingText}>
-                  {detailService.rating_avg ? detailService.rating_avg.toFixed(1) : "4.8"}
-                </Text>
-                <Text style={styles.reviewCount}>
-                  ({detailService.review_count || 120} reviews)
-                </Text>
-              </View>
-              {Boolean(activePkg.duration_minutes) && (
-                <View style={styles.durationBadge}>
-                  <Ionicons name="time-outline" size={13} color={colors.primary} />
-                  <Text style={styles.durationText}>{activePkg.duration_minutes} mins</Text>
-                </View>
-              )}
-            </View>
+          {/* Service Title & Pricing */}
+          <View style={styles.contentBody}>
+            <Text style={styles.serviceTitle}>{detailService.name}</Text>
+            <Text style={styles.servicePrice}>{formatInr(pricePaise)}</Text>
 
-            {/* Description */}
-            <Text style={styles.description}>
-              {detailService.description ||
-                detailService.summary ||
-                "Full professional home visit by verified, background-checked NammaPros technician."}
-            </Text>
-
-            {/* Package Selector */}
-            <Text style={styles.sectionTitle}>Select Package Variant</Text>
-            <View style={styles.packagesContainer}>
-              {packages.map((pkg, idx) => {
-                const isSelected = selectedPkgIndex === idx;
-                return (
-                  <Pressable
-                    key={pkg.id}
-                    onPress={() => setSelectedPkgIndex(idx)}
-                    style={[
-                      styles.packageCard,
-                      isSelected && styles.packageCardSelected,
-                    ]}
-                  >
-                    <View style={styles.pkgTopRow}>
+            {/* Multiple Package Tabs (if available) */}
+            {Boolean(packages.length > 1) && (
+              <View style={styles.pkgTabsRow}>
+                {packages.map((pkg, idx) => {
+                  const isSelected = selectedPkgIndex === idx;
+                  return (
+                    <Pressable
+                      key={pkg.id}
+                      onPress={() => setSelectedPkgIndex(idx)}
+                      style={[styles.pkgTab, isSelected && styles.pkgTabActive]}
+                    >
                       <Text
                         style={[
-                          styles.packageName,
-                          isSelected && styles.packageNameSelected,
+                          styles.pkgTabText,
+                          isSelected && styles.pkgTabTextActive,
                         ]}
                       >
                         {pkg.name}
                       </Text>
-                      <Text style={styles.pkgPrice}>
-                        {formatInr(pkg.price_paise)}
-                      </Text>
-                    </View>
-                    {Boolean(pkg.duration_minutes) && (
-                      <Text style={styles.pkgDuration}>
-                        {pkg.duration_minutes} mins duration
-                      </Text>
-                    )}
-                  </Pressable>
-                );
-              })}
-            </View>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            )}
 
-            {/* Inclusions */}
-            {Boolean(activePkg.inclusions && activePkg.inclusions.length > 0) && (
-              <View style={styles.inclusionsSection}>
-                <Text style={styles.sectionTitle}>What is Included</Text>
-                <View style={styles.bulletList}>
-                  {activePkg.inclusions.map((item, i) => (
-                    <View key={i} style={styles.bulletRow}>
-                      <Ionicons
-                        name="checkmark-circle"
-                        size={16}
-                        color={colors.success}
-                        style={{ marginTop: 2 }}
-                      />
-                      <Text style={styles.bulletText}>{item}</Text>
-                    </View>
-                  ))}
+            {/* Checklist Bullets matching Screen 9 & 10 */}
+            <View style={styles.checklistCard}>
+              {displayBullets.map((bullet, idx) => (
+                <View key={idx} style={styles.checkRow}>
+                  <View style={styles.checkIconWrapper}>
+                    <Ionicons name="checkmark-sharp" size={14} color={colors.primary} />
+                  </View>
+                  <Text style={styles.checkText}>{bullet}</Text>
                 </View>
-              </View>
-            )}
-
-            {/* Exclusions */}
-            {Boolean(activePkg.exclusions && activePkg.exclusions.length > 0) && (
-              <View style={styles.inclusionsSection}>
-                <Text style={styles.sectionTitle}>What is Excluded</Text>
-                <View style={styles.bulletList}>
-                  {activePkg.exclusions.map((item, i) => (
-                    <View key={i} style={styles.bulletRow}>
-                      <Ionicons
-                        name="close-circle-outline"
-                        size={16}
-                        color={colors.error}
-                        style={{ marginTop: 2 }}
-                      />
-                      <Text style={styles.bulletTextMuted}>{item}</Text>
-                    </View>
-                  ))}
-                </View>
-              </View>
-            )}
-
-            {/* FAQs / Note */}
-            <View style={styles.notesBox}>
-              <Ionicons name="information-circle" size={18} color={colors.primary} />
-              <Text style={styles.notesText}>
-                No advance payment is compulsory. You may inspect the finished work and pay upon visit
-                via Cash, UPI, or Card.
-              </Text>
-            </View>
-          </ScrollView>
-
-          {/* Sticky Bottom Bar */}
-          <View style={styles.bottomBar}>
-            <View>
-              <Text style={styles.bottomPrice}>{formatInr(pricePaise)}</Text>
-              <Text style={styles.bottomPriceSub}>Included taxes & visit</Text>
+              ))}
             </View>
 
-            {inCart ? (
-              <View style={styles.bottomStepper}>
-                <Pressable
-                  onPress={() => updateQuantity(detailService.id, activePkg.id, -1)}
-                  style={styles.bottomStepBtn}
-                >
-                  <Ionicons name="remove" size={18} color={colors.white} />
-                </Pressable>
-                <Text style={styles.bottomStepCount}>{inCart.quantity}</Text>
-                <Pressable
-                  onPress={() => updateQuantity(detailService.id, activePkg.id, 1)}
-                  style={styles.bottomStepBtn}
-                >
-                  <Ionicons name="add" size={18} color={colors.white} />
-                </Pressable>
+            {/* Description / Summary */}
+            {Boolean(detailService.summary || detailService.description) && (
+              <View style={styles.descriptionSection}>
+                <Text style={styles.sectionTitle}>Overview</Text>
+                <Text style={styles.descriptionText}>
+                  {detailService.summary || detailService.description}
+                </Text>
               </View>
-            ) : (
-              <Pressable onPress={handleAddToCart} style={styles.bookNowBtn}>
-                <Ionicons name="cart-outline" size={16} color={colors.white} />
-                <Text style={styles.bookNowBtnText}>Add to Cart</Text>
-              </Pressable>
             )}
+
+            {/* Guarantee Callout */}
+            <View style={styles.guaranteeCallout}>
+              <Ionicons name="shield-checkmark" size={20} color={colors.primary} />
+              <View style={styles.guaranteeTextWrapper}>
+                <Text style={styles.guaranteeHeading}>30-Day Rework Guarantee</Text>
+                <Text style={styles.guaranteeSub}>
+                  Complete peace of mind. Free revisit if any issue persists.
+                </Text>
+              </View>
+            </View>
           </View>
+        </ScrollView>
+
+        {/* Bottom Fixed Action Bar */}
+        <View style={styles.bottomBar}>
+          {inCartCount === 0 ? (
+            <Pressable
+              onPress={handleAddToCart}
+              style={styles.addToCartBtn}
+              accessibilityRole="button"
+              accessibilityLabel="Add to Cart"
+            >
+              <Text style={styles.addToCartText}>Add to Cart</Text>
+            </Pressable>
+          ) : (
+            <View style={styles.stepperRow}>
+              <Pressable onPress={handleDecrease} style={styles.stepBtn}>
+                <Ionicons name="remove" size={18} color={colors.white} />
+              </Pressable>
+              <Text style={styles.stepCountText}>{inCartCount} in Cart</Text>
+              <Pressable onPress={handleIncrease} style={styles.stepBtn}>
+                <Ionicons name="add" size={18} color={colors.white} />
+              </Pressable>
+              <Pressable
+                onPress={() => {
+                  setDetailService(null);
+                  setIsCartOpen(true);
+                }}
+                style={styles.viewCartPill}
+              >
+                <Text style={styles.viewCartPillText}>View Cart</Text>
+              </Pressable>
+            </View>
+          )}
         </View>
-      </View>
+      </SafeAreaView>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
+  safeArea: {
     flex: 1,
-    justifyContent: "flex-end",
-    backgroundColor: "rgba(28, 25, 23, 0.45)",
-  },
-  backdrop: {
-    flex: 1,
-  },
-  sheet: {
     backgroundColor: colors.surface,
-    borderTopLeftRadius: radii.xl,
-    borderTopRightRadius: radii.xl,
-    maxHeight: "88%",
-    minHeight: "55%",
   },
-  handle: {
+  scroll: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 80,
+  },
+  heroImageContainer: {
+    width: "100%",
+    height: 260,
+    backgroundColor: colors.canvasWarm,
+    position: "relative",
+  },
+  heroImage: {
+    width: "100%",
+    height: "100%",
+  },
+  floatingBackBtn: {
+    position: "absolute",
+    top: spacing.md,
+    left: spacing.lg,
     width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.border,
-    alignSelf: "center",
-    marginTop: spacing.sm,
-    marginBottom: spacing.xs,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.surface,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: colors.ink,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 4,
   },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.borderLight,
+  contentBody: {
+    padding: spacing.xl,
   },
-  categoryBadge: {
-    fontSize: 10,
-    fontWeight: "800",
-    color: colors.primary,
-    letterSpacing: 0.5,
-  },
-  title: {
-    fontSize: 18,
+  serviceTitle: {
+    fontSize: 22,
     fontWeight: "800",
     color: colors.ink,
-    lineHeight: 24,
-    marginTop: 2,
+    lineHeight: 28,
   },
-  closeBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+  servicePrice: {
+    fontSize: 22,
+    fontWeight: "900",
+    color: colors.primary,
+    marginTop: spacing.xs,
+    marginBottom: spacing.lg,
+  },
+  pkgTabsRow: {
+    flexDirection: "row",
+    gap: spacing.sm,
+    marginBottom: spacing.lg,
+  },
+  pkgTab: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: 6,
+    borderRadius: radii.pill,
     backgroundColor: colors.canvasWarm,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  pkgTabActive: {
+    backgroundColor: colors.primarySoft,
+    borderColor: colors.primary,
+  },
+  pkgTabText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: colors.ink,
+  },
+  pkgTabTextActive: {
+    color: colors.primary,
+    fontWeight: "700",
+  },
+  checklistCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    gap: spacing.md,
+    marginBottom: spacing.lg,
+  },
+  checkRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+  },
+  checkIconWrapper: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: colors.primarySoft,
     alignItems: "center",
     justifyContent: "center",
   },
-  scrollContent: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    gap: spacing.md,
-  },
-  metaRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-  },
-  ratingBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: colors.canvasWarm,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 3,
-    borderRadius: radii.sm,
-    gap: 4,
-  },
-  ratingText: {
-    fontSize: 12,
-    fontWeight: "700",
+  checkText: {
+    fontSize: 14,
     color: colors.ink,
+    fontWeight: "500",
+    flex: 1,
   },
-  reviewCount: {
-    fontSize: 11,
-    color: colors.muted,
-  },
-  durationBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: colors.primarySoft,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 3,
-    borderRadius: radii.sm,
-    gap: 4,
-  },
-  durationText: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: colors.primary,
-  },
-  description: {
-    fontSize: 13,
-    color: colors.inkSecondary,
-    lineHeight: 19,
+  descriptionSection: {
+    marginBottom: spacing.lg,
   },
   sectionTitle: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: "700",
     color: colors.ink,
-    marginBottom: spacing.xs,
+    marginBottom: 6,
   },
-  packagesContainer: {
-    gap: spacing.sm,
-  },
-  packageCard: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.md,
-    padding: spacing.md,
-    backgroundColor: colors.canvas,
-  },
-  packageCardSelected: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primarySoft,
-  },
-  pkgTopRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  packageName: {
+  descriptionText: {
     fontSize: 13,
-    fontWeight: "600",
-    color: colors.ink,
-  },
-  packageNameSelected: {
-    color: colors.primary,
-    fontWeight: "700",
-  },
-  pkgPrice: {
-    fontSize: 14,
-    fontWeight: "800",
-    color: colors.primary,
-  },
-  pkgDuration: {
-    fontSize: 11,
     color: colors.muted,
-    marginTop: 3,
+    lineHeight: 20,
   },
-  inclusionsSection: {
-    marginTop: spacing.xs,
-  },
-  bulletList: {
-    gap: 6,
-    marginTop: 4,
-  },
-  bulletRow: {
+  guaranteeCallout: {
     flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 8,
-  },
-  bulletText: {
-    flex: 1,
-    fontSize: 12,
-    color: colors.ink,
-    lineHeight: 18,
-  },
-  bulletTextMuted: {
-    flex: 1,
-    fontSize: 12,
-    color: colors.muted,
-    lineHeight: 18,
-  },
-  notesBox: {
-    flexDirection: "row",
-    backgroundColor: colors.canvasWarm,
-    borderRadius: radii.md,
+    alignItems: "center",
+    gap: spacing.md,
+    backgroundColor: colors.primarySoft,
     padding: spacing.md,
-    gap: spacing.sm,
-    marginTop: spacing.xs,
+    borderRadius: radii.lg,
   },
-  notesText: {
+  guaranteeTextWrapper: {
     flex: 1,
+  },
+  guaranteeHeading: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: colors.primary,
+  },
+  guaranteeSub: {
     fontSize: 11,
-    color: colors.muted,
-    lineHeight: 16,
+    color: colors.inkSecondary,
+    marginTop: 2,
   },
   bottomBar: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.xl,
     paddingVertical: spacing.md,
     borderTopWidth: 1,
-    borderTopColor: colors.border,
+    borderTopColor: colors.borderLight,
     backgroundColor: colors.surface,
   },
-  bottomPrice: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: colors.primary,
-  },
-  bottomPriceSub: {
-    fontSize: 10,
-    color: colors.muted,
-  },
-  bookNowBtn: {
+  addToCartBtn: {
+    height: 52,
+    borderRadius: 26,
     backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: colors.primaryDark,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  addToCartText: {
+    color: colors.white,
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  stepperRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    paddingHorizontal: spacing.xl,
-    paddingVertical: 12,
-    borderRadius: radii.md,
+    justifyContent: "space-between",
+    backgroundColor: colors.primary,
+    borderRadius: 26,
+    height: 52,
+    paddingHorizontal: spacing.sm,
   },
-  bookNowBtnText: {
+  stepBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  stepCountText: {
     color: colors.white,
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  viewCartPill: {
+    backgroundColor: colors.white,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 8,
+    borderRadius: 16,
+  },
+  viewCartPillText: {
+    color: colors.primary,
     fontSize: 13,
     fontWeight: "800",
-  },
-  bottomStepper: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: colors.primary,
-    borderRadius: radii.md,
-    paddingHorizontal: 4,
-    paddingVertical: 4,
-  },
-  bottomStepBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  bottomStepCount: {
-    fontSize: 14,
-    fontWeight: "800",
-    color: colors.white,
-    paddingHorizontal: 8,
   },
 });

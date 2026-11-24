@@ -3,6 +3,8 @@ import React, { useState } from "react";
 import {
   Modal,
   Pressable,
+  SafeAreaView,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -11,12 +13,57 @@ import {
 import { useApp } from "../state/AppContext";
 import { colors, radii, spacing } from "../theme";
 
-const POPULAR_CITIES = [
-  { name: "Chennai", defaultPin: "600020", state: "Tamil Nadu" },
-  { name: "Bengaluru", defaultPin: "560001", state: "Karnataka" },
-  { name: "Coimbatore", defaultPin: "641001", state: "Tamil Nadu" },
-  { name: "Madurai", defaultPin: "625001", state: "Tamil Nadu" },
-  { name: "Hyderabad", defaultPin: "500001", state: "Telangana" },
+interface LocationItem {
+  id: string;
+  title: string;
+  subtitle: string;
+  city: string;
+  pincode: string;
+}
+
+const AVAILABLE_LOCATIONS: LocationItem[] = [
+  {
+    id: "chennai-all",
+    title: "Chennai, Tamil Nadu",
+    subtitle: "All Zones & Localities",
+    city: "Chennai",
+    pincode: "600020",
+  },
+  {
+    id: "anna-nagar",
+    title: "Anna Nagar, Chennai",
+    subtitle: "North-West Zone",
+    city: "Chennai",
+    pincode: "600040",
+  },
+  {
+    id: "velachery",
+    title: "Velachery, Chennai",
+    subtitle: "South Zone",
+    city: "Chennai",
+    pincode: "600042",
+  },
+  {
+    id: "adyar",
+    title: "Adyar, Chennai",
+    subtitle: "South-Central Zone",
+    city: "Chennai",
+    pincode: "600020",
+  },
+  {
+    id: "t-nagar",
+    title: "T. Nagar, Chennai",
+    subtitle: "Central Zone",
+    city: "Chennai",
+    pincode: "600017",
+  },
+  {
+    id: "coimbatore",
+    title: "Coimbatore, Tamil Nadu",
+    subtitle: "Kongu Region Hub",
+    city: "Coimbatore",
+    pincode: "641001",
+  },
 ];
 
 export function LocationModal() {
@@ -30,21 +77,27 @@ export function LocationModal() {
     refreshCatalog,
   } = useApp();
 
-  const [cityInput, setCityInput] = useState(selectedCity);
-  const [pinInput, setPinInput] = useState(selectedPincode);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedLocId, setSelectedLocId] = useState("chennai-all");
 
   if (!isLocationModalOpen) return null;
 
-  const handleSelectCity = (city: { name: string; defaultPin: string }) => {
-    setSelectedCity(city.name);
-    setSelectedPincode(city.defaultPin);
-    setIsLocationModalOpen(false);
-    refreshCatalog();
+  const filteredLocations = AVAILABLE_LOCATIONS.filter(
+    (loc) =>
+      loc.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      loc.city.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const handleSelectLocation = (loc: LocationItem) => {
+    setSelectedLocId(loc.id);
   };
 
-  const handleApply = () => {
-    if (cityInput.trim()) setSelectedCity(cityInput.trim());
-    if (pinInput.trim()) setSelectedPincode(pinInput.trim());
+  const handleConfirm = () => {
+    const loc = AVAILABLE_LOCATIONS.find((l) => l.id === selectedLocId);
+    if (loc) {
+      setSelectedCity(loc.city);
+      setSelectedPincode(loc.pincode);
+    }
     setIsLocationModalOpen(false);
     refreshCatalog();
   };
@@ -52,192 +105,200 @@ export function LocationModal() {
   return (
     <Modal
       visible={isLocationModalOpen}
-      animationType="fade"
-      transparent
+      animationType="slide"
+      transparent={false}
       onRequestClose={() => setIsLocationModalOpen(false)}
     >
-      <View style={styles.overlay}>
-        <Pressable
-          style={styles.backdrop}
-          onPress={() => setIsLocationModalOpen(false)}
-        />
-        <View style={styles.dialog}>
-          <View style={styles.header}>
-            <View>
-              <Text style={styles.title}>Select Your City</Text>
-              <Text style={styles.sub}>
-                Showing available pros and service slots for your area
-              </Text>
-            </View>
-            <Pressable
-              onPress={() => setIsLocationModalOpen(false)}
-              style={styles.closeBtn}
-            >
-              <Ionicons name="close" size={20} color={colors.ink} />
-            </Pressable>
-          </View>
+      <SafeAreaView style={styles.safeArea}>
+        {/* Header */}
+        <View style={styles.header}>
+          <Pressable
+            onPress={() => setIsLocationModalOpen(false)}
+            style={styles.backBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Back"
+          >
+            <Ionicons name="arrow-back" size={24} color={colors.ink} />
+          </Pressable>
+          <Text style={styles.headerTitle}>Select your location</Text>
+          <View style={styles.headerPlaceholder} />
+        </View>
 
-          {/* Quick Popular Cities Chips */}
-          <Text style={styles.sectionLabel}>Popular Cities</Text>
-          <View style={styles.citiesRow}>
-            {POPULAR_CITIES.map((c) => {
-              const isSelected = selectedCity.toLowerCase() === c.name.toLowerCase();
-              return (
-                <Pressable
-                  key={c.name}
-                  onPress={() => handleSelectCity(c)}
-                  style={[styles.cityChip, isSelected && styles.cityChipSelected]}
-                >
+        {/* Search Bar with Magnifying Glass */}
+        <View style={styles.searchSection}>
+          <View style={styles.searchBar}>
+            <Ionicons name="search" size={18} color={colors.muted} />
+            <TextInput
+              placeholder="Search area, landmark or pincode…"
+              placeholderTextColor={colors.subtle}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              style={styles.searchInput}
+              clearButtonMode="while-editing"
+            />
+          </View>
+        </View>
+
+        {/* Location List */}
+        <ScrollView style={styles.listContainer} contentContainerStyle={styles.listContent}>
+          {filteredLocations.map((loc) => {
+            const isSelected = selectedLocId === loc.id;
+            return (
+              <Pressable
+                key={loc.id}
+                onPress={() => handleSelectLocation(loc)}
+                style={[styles.locationItem, isSelected && styles.locationItemSelected]}
+              >
+                <View style={styles.locationItemLeft}>
                   <Ionicons
                     name="location-sharp"
-                    size={14}
-                    color={isSelected ? colors.white : colors.primary}
+                    size={20}
+                    color={isSelected ? colors.primary : colors.muted}
                   />
-                  <Text
-                    style={[styles.cityChipText, isSelected && styles.cityChipTextSelected]}
-                  >
-                    {c.name}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
+                  <View>
+                    <Text
+                      style={[
+                        styles.locationItemTitle,
+                        isSelected && styles.locationItemTitleSelected,
+                      ]}
+                    >
+                      {loc.title}
+                    </Text>
+                    <Text style={styles.locationItemSub}>{loc.subtitle}</Text>
+                  </View>
+                </View>
 
-          {/* Custom City and Pincode Inputs */}
-          <View style={styles.inputSection}>
-            <Text style={styles.sectionLabel}>Or Enter Pincode</Text>
-            <View style={styles.inputRow}>
-              <Ionicons name="search-outline" size={18} color={colors.muted} />
-              <TextInput
-                placeholder="6-digit pincode e.g. 600020"
-                placeholderTextColor={colors.subtle}
-                value={pinInput}
-                onChangeText={setPinInput}
-                keyboardType="numeric"
-                maxLength={6}
-                style={styles.input}
-              />
-            </View>
-          </View>
+                {Boolean(isSelected) && (
+                  <Ionicons name="checkmark" size={20} color={colors.primary} />
+                )}
+              </Pressable>
+            );
+          })}
+        </ScrollView>
 
-          {/* Apply Button */}
-          <Pressable onPress={handleApply} style={styles.applyBtn}>
-            <Text style={styles.applyBtnText}>Apply Location</Text>
+        {/* Bottom Fixed Action Button */}
+        <View style={styles.bottomBar}>
+          <Pressable
+            onPress={handleConfirm}
+            style={styles.confirmBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Confirm Location"
+          >
+            <Text style={styles.confirmBtnText}>Confirm Location</Text>
           </Pressable>
         </View>
-      </View>
+      </SafeAreaView>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
+  safeArea: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(28, 25, 23, 0.4)",
-    padding: spacing.lg,
-  },
-  backdrop: {
-    ...StyleSheet.absoluteFill,
-  },
-  dialog: {
-    width: "100%",
-    maxWidth: 420,
     backgroundColor: colors.surface,
-    borderRadius: radii.xl,
-    padding: spacing.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    gap: spacing.md,
   },
   header: {
     flexDirection: "row",
+    alignItems: "center",
     justifyContent: "space-between",
-    alignItems: "flex-start",
+    paddingHorizontal: spacing.lg,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderLight,
   },
-  title: {
+  backBtn: {
+    width: 36,
+    height: 36,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  headerTitle: {
     fontSize: 17,
-    fontWeight: "800",
+    fontWeight: "700",
     color: colors.ink,
   },
-  sub: {
+  headerPlaceholder: {
+    width: 36,
+  },
+  searchSection: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+  },
+  searchBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: colors.canvasWarm,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.md,
+    height: 46,
+    gap: spacing.sm,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+    color: colors.ink,
+  },
+  listContainer: {
+    flex: 1,
+  },
+  listContent: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+  },
+  locationItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderLight,
+  },
+  locationItemSelected: {
+    backgroundColor: colors.primaryLight,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radii.sm,
+  },
+  locationItemLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+  },
+  locationItemTitle: {
+    fontSize: 15,
+    fontWeight: "500",
+    color: colors.ink,
+  },
+  locationItemTitleSelected: {
+    fontWeight: "700",
+    color: colors.primary,
+  },
+  locationItemSub: {
     fontSize: 12,
     color: colors.muted,
     marginTop: 2,
   },
-  closeBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.canvasWarm,
+  bottomBar: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderLight,
+    backgroundColor: colors.surface,
+  },
+  confirmBtn: {
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
+    shadowColor: colors.primaryDark,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  sectionLabel: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: colors.ink,
-    marginBottom: spacing.xs,
-  },
-  citiesRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.sm,
-  },
-  cityChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: colors.canvasWarm,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 8,
-    borderRadius: radii.pill,
-    gap: 4,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-  },
-  cityChipSelected: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  cityChipText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: colors.ink,
-  },
-  cityChipTextSelected: {
+  confirmBtnText: {
     color: colors.white,
+    fontSize: 16,
     fontWeight: "700",
-  },
-  inputSection: {
-    marginTop: spacing.xs,
-  },
-  inputRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: colors.canvasWarm,
-    borderRadius: radii.md,
-    paddingHorizontal: spacing.md,
-    height: 44,
-    gap: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  input: {
-    flex: 1,
-    fontSize: 13,
-    color: colors.ink,
-  },
-  applyBtn: {
-    backgroundColor: colors.primary,
-    paddingVertical: 12,
-    borderRadius: radii.md,
-    alignItems: "center",
-    marginTop: spacing.xs,
-  },
-  applyBtnText: {
-    color: colors.white,
-    fontSize: 13,
-    fontWeight: "800",
   },
 });
