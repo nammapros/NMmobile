@@ -4,7 +4,9 @@ import {
   Alert,
   Image,
   Modal,
+  Platform,
   Pressable,
+  StatusBar,
   StyleSheet,
   Text,
   TextInput,
@@ -12,6 +14,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ServiceBannerAssets } from "../assets";
+import { SwipeBackContainer } from "../components/SwipeBackContainer";
 import { useApp } from "../state/AppContext";
 import { colors, isAndroid, radii, spacing, statusBarHeight } from "../theme";
 
@@ -60,10 +63,11 @@ export function RatingModal() {
       visible={isRatingModalOpen}
       animationType="slide"
       transparent={false}
-      statusBarTranslucent={true}
+      statusBarTranslucent={false}
       onRequestClose={() => setIsRatingModalOpen(false)}
     >
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={styles.safeArea} edges={["top", "left", "right", "bottom"]}>
+        <SwipeBackContainer onBack={() => setIsRatingModalOpen(false)}>
         {/* ========================================================
             SCREEN 20: RATE YOUR SERVICE
             ======================================================== */}
@@ -137,6 +141,7 @@ export function RatingModal() {
             <Text style={styles.submitBtnText}>Submit Review</Text>
           </Pressable>
         </View>
+        </SwipeBackContainer>
       </SafeAreaView>
     </Modal>
   );
@@ -146,7 +151,7 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.surface,
-    paddingTop: isAndroid ? statusBarHeight : 0,
+    paddingTop: Platform.OS === "android" ? Math.max(StatusBar.currentHeight || 28, 28) : 0,
   },
   header: {
     flexDirection: "row",

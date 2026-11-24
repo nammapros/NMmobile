@@ -2,14 +2,17 @@ import { Ionicons } from "@expo/vector-icons";
 import React, { useState } from "react";
 import {
   Modal,
+  Platform,
   Pressable,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { SwipeBackContainer } from "../components/SwipeBackContainer";
 import { useApp } from "../state/AppContext";
 import { colors, isAndroid, radii, spacing, statusBarHeight } from "../theme";
 
@@ -107,10 +110,11 @@ export function LocationModal() {
       visible={isLocationModalOpen}
       animationType="slide"
       transparent={false}
-      statusBarTranslucent={true}
+      statusBarTranslucent={false}
       onRequestClose={() => setIsLocationModalOpen(false)}
     >
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={styles.safeArea} edges={["top", "left", "right", "bottom"]}>
+        <SwipeBackContainer onBack={() => setIsLocationModalOpen(false)}>
         {/* Header */}
         <View style={styles.header}>
           <Pressable
@@ -188,6 +192,7 @@ export function LocationModal() {
             <Text style={styles.confirmBtnText}>Confirm Location</Text>
           </Pressable>
         </View>
+        </SwipeBackContainer>
       </SafeAreaView>
     </Modal>
   );
@@ -197,7 +202,7 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.surface,
-    paddingTop: isAndroid ? statusBarHeight : 0,
+    paddingTop: Platform.OS === "android" ? Math.max(StatusBar.currentHeight || 28, 28) : 0,
   },
   header: {
     flexDirection: "row",

@@ -5,8 +5,10 @@ import {
   Alert,
   Linking,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   TextInput,
@@ -14,6 +16,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { api, CLOUD_RUN_URL_1, CLOUD_RUN_URL_2 } from "../api";
+import { SwipeBackContainer } from "../components/SwipeBackContainer";
 import { useApp } from "../state/AppContext";
 import { colors, isAndroid, radii, spacing, statusBarHeight } from "../theme";
 
@@ -90,7 +93,7 @@ export function AccountScreen() {
     .toUpperCase();
 
   return (
-    <View style={styles.container}>
+    <SwipeBackContainer onBack={() => setActiveTab("home")} style={styles.container}>
       {/* ========================================================
           SCREEN 21: PROFILE / MY ACCOUNT
           ======================================================== */}
@@ -263,31 +266,35 @@ export function AccountScreen() {
           visible={showAddressesModal}
           animationType="slide"
           transparent={false}
-          statusBarTranslucent={true}
+          statusBarTranslucent={false}
           onRequestClose={() => setShowAddressesModal(false)}
         >
-          <SafeAreaView style={styles.modalSafeArea}>
-            <View style={styles.modalHeader}>
-              <Pressable
-                onPress={() => setShowAddressesModal(false)}
-                style={styles.modalBackBtn}
-              >
-                <Ionicons name="arrow-back" size={24} color={colors.ink} />
-              </Pressable>
-              <Text style={styles.modalTitle}>Saved Addresses</Text>
-              <View style={{ width: 36 }} />
-            </View>
-            <ScrollView style={styles.modalScroll} contentContainerStyle={styles.modalContent}>
-              {savedAddresses.map((addr) => (
-                <View key={addr.id} style={styles.savedAddrCard}>
-                  <View style={styles.savedAddrHeader}>
-                    <Ionicons name="home" size={18} color={colors.primary} />
-                    <Text style={styles.savedAddrLabel}>{addr.label || "Address"}</Text>
+          <SafeAreaView style={styles.modalSafeArea} edges={["top", "bottom", "left", "right"]}>
+            <SwipeBackContainer onBack={() => setShowAddressesModal(false)} style={{ flex: 1 }}>
+              <View style={styles.modalHeader}>
+                <Pressable
+                  onPress={() => setShowAddressesModal(false)}
+                  style={styles.modalBackBtn}
+                  accessibilityRole="button"
+                  accessibilityLabel="Back"
+                >
+                  <Ionicons name="arrow-back" size={24} color={colors.ink} />
+                </Pressable>
+                <Text style={styles.modalTitle}>Saved Addresses</Text>
+                <View style={{ width: 36 }} />
+              </View>
+              <ScrollView style={styles.modalScroll} contentContainerStyle={styles.modalContent}>
+                {savedAddresses.map((addr) => (
+                  <View key={addr.id} style={styles.savedAddrCard}>
+                    <View style={styles.savedAddrHeader}>
+                      <Ionicons name="home" size={18} color={colors.primary} />
+                      <Text style={styles.savedAddrLabel}>{addr.label || "Address"}</Text>
+                    </View>
+                    <Text style={styles.savedAddrLine}>{addr.line_1}</Text>
                   </View>
-                  <Text style={styles.savedAddrLine}>{addr.line_1}</Text>
-                </View>
-              ))}
-            </ScrollView>
+                ))}
+              </ScrollView>
+            </SwipeBackContainer>
           </SafeAreaView>
         </Modal>
       )}
@@ -300,46 +307,50 @@ export function AccountScreen() {
           visible={showPaymentMethodsModal}
           animationType="slide"
           transparent={false}
-          statusBarTranslucent={true}
+          statusBarTranslucent={false}
           onRequestClose={() => setShowPaymentMethodsModal(false)}
         >
-          <SafeAreaView style={styles.modalSafeArea}>
-            <View style={styles.modalHeader}>
-              <Pressable
-                onPress={() => setShowPaymentMethodsModal(false)}
-                style={styles.modalBackBtn}
-              >
-                <Ionicons name="arrow-back" size={24} color={colors.ink} />
-              </Pressable>
-              <Text style={styles.modalTitle}>Payment Methods</Text>
-              <View style={{ width: 36 }} />
-            </View>
-            <ScrollView style={styles.modalScroll} contentContainerStyle={styles.modalContent}>
-              <View style={styles.paymentMethodCard}>
-                <Ionicons name="flash" size={22} color={colors.primary} />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.paymentMethodTitle}>UPI (Instant Pay)</Text>
-                  <Text style={styles.paymentMethodSub}>Google Pay, PhonePe, Paytm</Text>
-                </View>
-                <Ionicons name="checkmark-circle" size={20} color={colors.success} />
+          <SafeAreaView style={styles.modalSafeArea} edges={["top", "bottom", "left", "right"]}>
+            <SwipeBackContainer onBack={() => setShowPaymentMethodsModal(false)} style={{ flex: 1 }}>
+              <View style={styles.modalHeader}>
+                <Pressable
+                  onPress={() => setShowPaymentMethodsModal(false)}
+                  style={styles.modalBackBtn}
+                  accessibilityRole="button"
+                  accessibilityLabel="Back"
+                >
+                  <Ionicons name="arrow-back" size={24} color={colors.ink} />
+                </Pressable>
+                <Text style={styles.modalTitle}>Payment Methods</Text>
+                <View style={{ width: 36 }} />
               </View>
+              <ScrollView style={styles.modalScroll} contentContainerStyle={styles.modalContent}>
+                <View style={styles.paymentMethodCard}>
+                  <Ionicons name="flash" size={22} color={colors.primary} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.paymentMethodTitle}>UPI (Instant Pay)</Text>
+                    <Text style={styles.paymentMethodSub}>Google Pay, PhonePe, Paytm</Text>
+                  </View>
+                  <Ionicons name="checkmark-circle" size={20} color={colors.success} />
+                </View>
 
-              <View style={styles.paymentMethodCard}>
-                <Ionicons name="card" size={22} color={colors.primary} />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.paymentMethodTitle}>Debit / Credit Card</Text>
-                  <Text style={styles.paymentMethodSub}>Visa, MasterCard, RuPay</Text>
+                <View style={styles.paymentMethodCard}>
+                  <Ionicons name="card" size={22} color={colors.primary} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.paymentMethodTitle}>Debit / Credit Card</Text>
+                    <Text style={styles.paymentMethodSub}>Visa, MasterCard, RuPay</Text>
+                  </View>
                 </View>
-              </View>
 
-              <View style={styles.paymentMethodCard}>
-                <Ionicons name="cash" size={22} color={colors.primary} />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.paymentMethodTitle}>Pay After Service</Text>
-                  <Text style={styles.paymentMethodSub}>Pay technician via UPI QR code</Text>
+                <View style={styles.paymentMethodCard}>
+                  <Ionicons name="cash" size={22} color={colors.primary} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.paymentMethodTitle}>Pay After Service</Text>
+                    <Text style={styles.paymentMethodSub}>Pay technician via UPI QR code</Text>
+                  </View>
                 </View>
-              </View>
-            </ScrollView>
+              </ScrollView>
+            </SwipeBackContainer>
           </SafeAreaView>
         </Modal>
       )}
@@ -352,60 +363,64 @@ export function AccountScreen() {
           visible={showBackendModal}
           animationType="slide"
           transparent={false}
-          statusBarTranslucent={true}
+          statusBarTranslucent={false}
           onRequestClose={() => setShowBackendModal(false)}
         >
-          <SafeAreaView style={styles.modalSafeArea}>
-            <View style={styles.modalHeader}>
-              <Pressable
-                onPress={() => setShowBackendModal(false)}
-                style={styles.modalBackBtn}
-              >
-                <Ionicons name="arrow-back" size={24} color={colors.ink} />
-              </Pressable>
-              <Text style={styles.modalTitle}>Backend &amp; API Settings</Text>
-              <View style={{ width: 36 }} />
-            </View>
-            <ScrollView style={styles.modalScroll} contentContainerStyle={styles.modalContent}>
-              <View style={styles.backendCard}>
-                <Text style={styles.backendHeading}>Active Backend URL</Text>
-                <Text style={styles.backendUrlText}>{currentApiUrl}</Text>
-
+          <SafeAreaView style={styles.modalSafeArea} edges={["top", "bottom", "left", "right"]}>
+            <SwipeBackContainer onBack={() => setShowBackendModal(false)} style={{ flex: 1 }}>
+              <View style={styles.modalHeader}>
                 <Pressable
-                  onPress={() => handleTestPing()}
-                  disabled={testingPing}
-                  style={styles.pingBtn}
+                  onPress={() => setShowBackendModal(false)}
+                  style={styles.modalBackBtn}
+                  accessibilityRole="button"
+                  accessibilityLabel="Back"
                 >
-                  {testingPing ? (
-                    <ActivityIndicator size="small" color={colors.white} />
-                  ) : (
-                    <Text style={styles.pingBtnText}>Test Backend Ping</Text>
+                  <Ionicons name="arrow-back" size={24} color={colors.ink} />
+                </Pressable>
+                <Text style={styles.modalTitle}>Backend &amp; API Settings</Text>
+                <View style={{ width: 36 }} />
+              </View>
+              <ScrollView style={styles.modalScroll} contentContainerStyle={styles.modalContent}>
+                <View style={styles.backendCard}>
+                  <Text style={styles.backendHeading}>Active Backend URL</Text>
+                  <Text style={styles.backendUrlText}>{currentApiUrl}</Text>
+
+                  <Pressable
+                    onPress={() => handleTestPing()}
+                    disabled={testingPing}
+                    style={styles.pingBtn}
+                  >
+                    {testingPing ? (
+                      <ActivityIndicator size="small" color={colors.white} />
+                    ) : (
+                      <Text style={styles.pingBtnText}>Test Backend Ping</Text>
+                    )}
+                  </Pressable>
+
+                  {pingLatency !== null && (
+                    <Text style={styles.pingResultText}>
+                      Latency: {pingLatency} ms (Healthy)
+                    </Text>
                   )}
-                </Pressable>
+                </View>
 
-                {pingLatency !== null && (
-                  <Text style={styles.pingResultText}>
-                    Latency: {pingLatency} ms (Healthy)
-                  </Text>
-                )}
-              </View>
-
-              <View style={styles.switchBox}>
-                <Text style={styles.switchBoxTitle}>Switch Deployed Endpoints</Text>
-                <Pressable
-                  onPress={() => handleSwitchBackend(CLOUD_RUN_URL_1)}
-                  style={styles.switchBtn}
-                >
-                  <Text style={styles.switchBtnText}>Cloud Run Production (Active)</Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => handleSwitchBackend(CLOUD_RUN_URL_2)}
-                  style={styles.switchBtn}
-                >
-                  <Text style={styles.switchBtnText}>Cloud Run Direct</Text>
-                </Pressable>
-              </View>
-            </ScrollView>
+                <View style={styles.switchBox}>
+                  <Text style={styles.switchBoxTitle}>Switch Deployed Endpoints</Text>
+                  <Pressable
+                    onPress={() => handleSwitchBackend(CLOUD_RUN_URL_1)}
+                    style={styles.switchBtn}
+                  >
+                    <Text style={styles.switchBtnText}>Cloud Run Production (Active)</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => handleSwitchBackend(CLOUD_RUN_URL_2)}
+                    style={styles.switchBtn}
+                  >
+                    <Text style={styles.switchBtnText}>Cloud Run Direct</Text>
+                  </Pressable>
+                </View>
+              </ScrollView>
+            </SwipeBackContainer>
           </SafeAreaView>
         </Modal>
       )}
@@ -418,33 +433,37 @@ export function AccountScreen() {
           visible={showAboutModal}
           animationType="slide"
           transparent={false}
-          statusBarTranslucent={true}
+          statusBarTranslucent={false}
           onRequestClose={() => setShowAboutModal(false)}
         >
-          <SafeAreaView style={styles.modalSafeArea}>
-            <View style={styles.modalHeader}>
-              <Pressable
-                onPress={() => setShowAboutModal(false)}
-                style={styles.modalBackBtn}
-              >
-                <Ionicons name="arrow-back" size={24} color={colors.ink} />
-              </Pressable>
-              <Text style={styles.modalTitle}>About Namma Pros</Text>
-              <View style={{ width: 36 }} />
-            </View>
-            <ScrollView style={styles.modalScroll} contentContainerStyle={styles.modalContent}>
-              <Text style={styles.aboutHeading}>namma pros.</Text>
-              <Text style={styles.aboutTagline}>Your Home. Our Expertise.</Text>
-              <Text style={styles.aboutParagraph}>
-                NammaPros is Chennai and Coimbatore&apos;s leading on-demand home services
-                platform. We deliver upfront transparent pricing, background-verified
-                professionals, direct slot booking, and an ironclad 30-Day Rework Guarantee.
-              </Text>
-            </ScrollView>
+          <SafeAreaView style={styles.modalSafeArea} edges={["top", "bottom", "left", "right"]}>
+            <SwipeBackContainer onBack={() => setShowAboutModal(false)} style={{ flex: 1 }}>
+              <View style={styles.modalHeader}>
+                <Pressable
+                  onPress={() => setShowAboutModal(false)}
+                  style={styles.modalBackBtn}
+                  accessibilityRole="button"
+                  accessibilityLabel="Back"
+                >
+                  <Ionicons name="arrow-back" size={24} color={colors.ink} />
+                </Pressable>
+                <Text style={styles.modalTitle}>About Namma Pros</Text>
+                <View style={{ width: 36 }} />
+              </View>
+              <ScrollView style={styles.modalScroll} contentContainerStyle={styles.modalContent}>
+                <Text style={styles.aboutHeading}>namma pros.</Text>
+                <Text style={styles.aboutTagline}>Your Home. Our Expertise.</Text>
+                <Text style={styles.aboutParagraph}>
+                  NammaPros is Chennai and Coimbatore&apos;s leading on-demand home services
+                  platform. We deliver upfront transparent pricing, background-verified
+                  professionals, direct slot booking, and an ironclad 30-Day Rework Guarantee.
+                </Text>
+              </ScrollView>
+            </SwipeBackContainer>
           </SafeAreaView>
         </Modal>
       )}
-    </View>
+    </SwipeBackContainer>
   );
 }
 
@@ -589,7 +608,7 @@ const styles = StyleSheet.create({
   modalSafeArea: {
     flex: 1,
     backgroundColor: colors.surface,
-    paddingTop: isAndroid ? statusBarHeight : 0,
+    paddingTop: Platform.OS === "android" ? Math.max(StatusBar.currentHeight || 28, 28) : 0,
   },
   modalHeader: {
     flexDirection: "row",

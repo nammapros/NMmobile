@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import { CategoryCardAssets, ServiceBannerAssets } from "../assets";
 import { formatInr, ServiceCard } from "../components/ServiceCard";
+import { SwipeBackContainer } from "../components/SwipeBackContainer";
 import { useApp } from "../state/AppContext";
 import { colors, radii, spacing } from "../theme";
 import type { Service } from "../types";
@@ -165,7 +166,11 @@ export function ServicesScreen() {
   };
 
   const handleBack = () => {
-    if (selectedCategorySlug) {
+    if (isSearchActive || localSearch.length > 0) {
+      setIsSearchActive(false);
+      setLocalSearch("");
+      setSearchQuery("");
+    } else if (selectedCategorySlug) {
       setSelectedCategorySlug(null);
     } else {
       setActiveTab("home");
@@ -178,7 +183,7 @@ export function ServicesScreen() {
   );
 
   return (
-    <View style={styles.container}>
+    <SwipeBackContainer onBack={handleBack} style={styles.container}>
       {/* ========================================================
           SCREEN HEADER
           ======================================================== */}
@@ -477,7 +482,7 @@ export function ServicesScreen() {
           }
         />
       )}
-    </View>
+    </SwipeBackContainer>
   );
 }
 

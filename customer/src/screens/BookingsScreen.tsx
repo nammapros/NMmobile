@@ -6,9 +6,11 @@ import {
   Image,
   Linking,
   Modal,
+  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   TextInput,
@@ -18,6 +20,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { api } from "../api";
 import { ServiceBannerAssets } from "../assets";
 import { formatInr } from "../components/ServiceCard";
+import { SwipeBackContainer } from "../components/SwipeBackContainer";
 import { useApp } from "../state/AppContext";
 import { colors, isAndroid, radii, spacing, statusBarHeight } from "../theme";
 import type { Booking } from "../types";
@@ -199,7 +202,7 @@ export function BookingsScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <SwipeBackContainer onBack={() => setActiveTab("home")} style={styles.container}>
       {/* ========================================================
           SCREEN 17: MY BOOKINGS
           ======================================================== */}
@@ -332,7 +335,8 @@ export function BookingsScreen() {
           onRequestClose={() => setActiveTrackingBooking(null)}
         >
           <SafeAreaView style={styles.trackingSafeArea} edges={["top", "left", "right", "bottom"]}>
-            {/* Modal Header */}
+            <SwipeBackContainer onBack={() => setActiveTrackingBooking(null)} style={{ flex: 1 }}>
+              {/* Modal Header */}
             <View style={styles.trackingHeader}>
               <Pressable
                 onPress={() => setActiveTrackingBooking(null)}
@@ -525,11 +529,12 @@ export function BookingsScreen() {
                 <Text style={styles.rateServiceBtnText}>Rate Your Service</Text>
               </Pressable>
             </ScrollView>
-          </SafeAreaView>
-        </Modal>
-      )}
-    </View>
-  );
+          </SwipeBackContainer>
+        </SafeAreaView>
+      </Modal>
+    )}
+  </SwipeBackContainer>
+);
 }
 
 const styles = StyleSheet.create({
@@ -693,6 +698,7 @@ const styles = StyleSheet.create({
   trackingSafeArea: {
     flex: 1,
     backgroundColor: colors.surface,
+    paddingTop: Platform.OS === "android" ? Math.max(StatusBar.currentHeight || 28, 28) : 0,
   },
   trackingHeader: {
     flexDirection: "row",

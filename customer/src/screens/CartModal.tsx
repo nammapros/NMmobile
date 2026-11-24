@@ -9,6 +9,7 @@ import {
   Platform,
   Pressable,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   TextInput,
@@ -18,6 +19,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { api } from "../api";
 import { getServiceImage, getServiceListImage } from "../assets";
 import { formatInr } from "../components/ServiceCard";
+import { SwipeBackContainer } from "../components/SwipeBackContainer";
 import { useApp } from "../state/AppContext";
 import { colors, isAndroid, radii, spacing, statusBarHeight } from "../theme";
 import type { Address, Booking } from "../types";
@@ -262,40 +264,32 @@ export function CartModal() {
     setActiveTab("home");
   };
 
+  const handleStepBack = () => {
+    if (currentStep === "cart" || currentStep === "confirmed") {
+      setIsCartOpen(false);
+      setCurrentStep("cart");
+    } else if (currentStep === "address") setCurrentStep("cart");
+    else if (currentStep === "date") setCurrentStep("address");
+    else if (currentStep === "slot") setCurrentStep("date");
+    else if (currentStep === "payment") setCurrentStep("slot");
+  };
+
   return (
     <Modal
       visible={isCartOpen}
       animationType="slide"
       transparent={false}
       statusBarTranslucent={false}
-      onRequestClose={() => {
-        if (currentStep === "cart" || currentStep === "confirmed") {
-          setIsCartOpen(false);
-          setCurrentStep("cart");
-        } else {
-          // Go back one step
-          if (currentStep === "address") setCurrentStep("cart");
-          else if (currentStep === "date") setCurrentStep("address");
-          else if (currentStep === "slot") setCurrentStep("date");
-          else if (currentStep === "payment") setCurrentStep("slot");
-        }
-      }}
+      onRequestClose={handleStepBack}
     >
       <SafeAreaView style={styles.safeArea} edges={["top", "left", "right", "bottom"]}>
+        <SwipeBackContainer onBack={handleStepBack}>
         {/* ========================================================
             HEADER
             ======================================================== */}
         <View style={styles.header}>
           <Pressable
-            onPress={() => {
-              if (currentStep === "cart" || currentStep === "confirmed") {
-                setIsCartOpen(false);
-                setCurrentStep("cart");
-              } else if (currentStep === "address") setCurrentStep("cart");
-              else if (currentStep === "date") setCurrentStep("address");
-              else if (currentStep === "slot") setCurrentStep("date");
-              else if (currentStep === "payment") setCurrentStep("slot");
-            }}
+            onPress={handleStepBack}
             style={styles.headerBtn}
             accessibilityRole="button"
             accessibilityLabel="Back"
@@ -725,6 +719,7 @@ export function CartModal() {
             </ScrollView>
           </View>
         )}
+        </SwipeBackContainer>
       </SafeAreaView>
     </Modal>
   );
@@ -734,7 +729,7 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.surface,
-    paddingTop: isAndroid ? statusBarHeight : 0,
+    paddingTop: Platform.OS === "android" ? Math.max(StatusBar.currentHeight || 28, 28) : 0,
   },
   header: {
     flexDirection: "row",

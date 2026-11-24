@@ -19,6 +19,7 @@ import {
   sendFirebaseOtp,
   type SendOtpResult,
 } from "../services/firebaseAuth";
+import { SwipeBackContainer } from "../components/SwipeBackContainer";
 import { useApp } from "../state/AppContext";
 import { colors, radii, spacing } from "../theme";
 
@@ -156,7 +157,16 @@ export function OtpModal() {
       >
         <Pressable style={styles.backdrop} onPress={() => setIsAuthOpen(false)} />
 
-        <View style={styles.sheetContainer}>
+        <SwipeBackContainer
+          onBack={() => {
+            if (step === "otp") {
+              setStep("phone");
+            } else {
+              setIsAuthOpen(false);
+            }
+          }}
+          style={styles.sheetContainer}
+        >
           {/* Top Handle Bar */}
           <View style={styles.handleBar} />
 
@@ -328,7 +338,7 @@ export function OtpModal() {
               </View>
             </View>
           )}
-        </View>
+        </SwipeBackContainer>
       </KeyboardAvoidingView>
     </Modal>
   );

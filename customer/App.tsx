@@ -9,7 +9,7 @@ import {
   Text,
   View,
 } from "react-native";
-import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { BottomNav } from "./src/components/BottomNav";
 import { Header } from "./src/components/Header";
 import { formatInr } from "./src/components/ServiceCard";
@@ -29,23 +29,36 @@ import { colors, isAndroid, radii, spacing, statusBarHeight } from "./src/theme"
 
 function MainNavigator() {
   const { activeTab, cartItemCount, cartTotalPaise, setIsCartOpen } = useApp();
+  const insets = useSafeAreaInsets();
+  const topInset = Math.max(
+    insets.top,
+    Platform.OS === "android" ? Math.max(statusBarHeight, 36) : 0
+  );
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={[styles.safeArea, { paddingTop: topInset }]}>
       <StatusBar style="dark" />
       <KeyboardAvoidingView
         style={styles.keyboardView}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        {/* Top Header */}
-        <Header />
+        {/* Top Header shown on Home */}
+        {activeTab === "home" && <Header />}
 
-        {/* Tab Screens */}
+        {/* Tab Screens: Persistent Mounting with display:none to prevent icon and service re-rendering */}
         <View style={styles.tabContent}>
-          {activeTab === "home" && <HomeScreen />}
-          {activeTab === "services" && <ServicesScreen />}
-          {activeTab === "bookings" && <BookingsScreen />}
-          {activeTab === "account" && <AccountScreen />}
+          <View style={[styles.screenWrap, activeTab !== "home" && styles.screenHidden]}>
+            <HomeScreen />
+          </View>
+          <View style={[styles.screenWrap, activeTab !== "services" && styles.screenHidden]}>
+            <ServicesScreen />
+          </View>
+          <View style={[styles.screenWrap, activeTab !== "bookings" && styles.screenHidden]}>
+            <BookingsScreen />
+          </View>
+          <View style={[styles.screenWrap, activeTab !== "account" && styles.screenHidden]}>
+            <AccountScreen />
+          </View>
         </View>
 
         {/* Floating Cart Bar (appears when items in cart) */}
@@ -103,7 +116,6 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.surface,
-    paddingTop: isAndroid ? statusBarHeight : 0,
   },
   keyboardView: {
     flex: 1,
@@ -111,6 +123,12 @@ const styles = StyleSheet.create({
   },
   tabContent: {
     flex: 1,
+  },
+  screenWrap: {
+    flex: 1,
+  },
+  screenHidden: {
+    display: "none",
   },
   floatingCart: {
     position: "absolute",

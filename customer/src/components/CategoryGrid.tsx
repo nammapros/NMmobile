@@ -10,6 +10,7 @@ import {
   View,
 } from "react-native";
 import { HomeIconAssets } from "../assets";
+import { SwipeBackContainer } from "./SwipeBackContainer";
 import { useApp } from "../state/AppContext";
 import { colors, radii, spacing } from "../theme";
 
@@ -151,7 +152,10 @@ export function CategoryGrid() {
             style={styles.modalBackdrop}
             onPress={() => setActiveSheetTile(null)}
           />
-          <View style={styles.modalSheet}>
+          <SwipeBackContainer
+            onBack={() => setActiveSheetTile(null)}
+            style={styles.modalSheet}
+          >
             <View style={styles.sheetHandle} />
 
             {/* Sheet Title */}
@@ -206,7 +210,7 @@ export function CategoryGrid() {
                 })}
               </View>
             </ScrollView>
-          </View>
+          </SwipeBackContainer>
         </View>
       </Modal>
     </View>

@@ -16,6 +16,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { api } from "../api";
 import { getServiceImage, getServicePopupImage } from "../assets";
 import { formatInr } from "../components/ServiceCard";
+import { SwipeBackContainer } from "../components/SwipeBackContainer";
 import { useApp } from "../state/AppContext";
 import { colors, isAndroid, radii, spacing, statusBarHeight } from "../theme";
 import type { Package, Service } from "../types";
@@ -193,41 +194,49 @@ export function ServiceDetailModal() {
       <SafeAreaView style={styles.safeArea} edges={["top", "left", "right", "bottom"]}>
         <StatusBar barStyle="dark-content" />
 
-        <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
-          {/* Top Hero Photo Container with floating Back & Close Buttons */}
-          <View style={styles.heroImageContainer}>
-            <Image
-              source={getServicePopupImage(currentService)}
-              style={styles.heroImage}
-              resizeMode="contain"
-              fadeDuration={0}
-            />
-
+        <SwipeBackContainer onBack={() => setDetailService(null)} style={styles.swipeContainer}>
+          {/* Top Header Bar safely below notification bar */}
+          <View style={styles.modalTopBar}>
             <Pressable
               onPress={() => setDetailService(null)}
-              style={styles.floatingBackBtn}
+              style={styles.modalBackBtn}
               accessibilityRole="button"
               accessibilityLabel="Back"
             >
-              <Ionicons name="arrow-back" size={20} color={colors.ink} />
+              <Ionicons name="arrow-back" size={22} color={colors.ink} />
             </Pressable>
+
+            <Text style={styles.modalTopTitle} numberOfLines={1}>
+              {currentService.name}
+            </Text>
 
             <Pressable
               onPress={() => setDetailService(null)}
-              style={styles.floatingCloseBtn}
+              style={styles.modalCloseBtn}
               accessibilityRole="button"
               accessibilityLabel="Close"
             >
-              <Ionicons name="close" size={20} color={colors.ink} />
+              <Ionicons name="close" size={22} color={colors.ink} />
             </Pressable>
-
-            {loadingLive && (
-              <View style={styles.loadingBadge}>
-                <ActivityIndicator size="small" color={colors.primary} />
-                <Text style={styles.loadingText}>Updating live details…</Text>
-              </View>
-            )}
           </View>
+
+          <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+            {/* Top Hero Photo Container */}
+            <View style={styles.heroImageContainer}>
+              <Image
+                source={getServicePopupImage(currentService)}
+                style={styles.heroImage}
+                resizeMode="contain"
+                fadeDuration={0}
+              />
+
+              {loadingLive && (
+                <View style={styles.loadingBadge}>
+                  <ActivityIndicator size="small" color={colors.primary} />
+                  <Text style={styles.loadingText}>Updating live details…</Text>
+                </View>
+              )}
+            </View>
 
           {/* Service Title & Pricing Section */}
           <View style={styles.contentBody}>
@@ -466,6 +475,7 @@ export function ServiceDetailModal() {
             </View>
           )}
         </View>
+        </SwipeBackContainer>
       </SafeAreaView>
     </Modal>
   );
@@ -475,6 +485,41 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.surface,
+    paddingTop: Platform.OS === "android" ? Math.max(StatusBar.currentHeight || 28, 28) : 0,
+  },
+  swipeContainer: {
+    flex: 1,
+  },
+  modalTopBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: spacing.md,
+    paddingVertical: 10,
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderLight,
+    height: 52,
+  },
+  modalBackBtn: {
+    width: 36,
+    height: 36,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalTopTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: colors.ink,
+    flex: 1,
+    textAlign: "center",
+    paddingHorizontal: spacing.sm,
+  },
+  modalCloseBtn: {
+    width: 36,
+    height: 36,
+    alignItems: "center",
+    justifyContent: "center",
   },
   scroll: {
     flex: 1,
@@ -494,23 +539,6 @@ const styles = StyleSheet.create({
   heroImage: {
     width: "92%",
     height: "92%",
-  },
-  floatingBackBtn: {
-    position: "absolute",
-    top: 12,
-    left: spacing.md,
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: "rgba(255, 255, 255, 0.95)",
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: colors.ink,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.15,
-    shadowRadius: 3,
-    elevation: 3,
-    zIndex: 10,
   },
   floatingCloseBtn: {
     position: "absolute",

@@ -3,13 +3,16 @@ import React, { useState } from "react";
 import {
   Image,
   Modal,
+  Platform,
   Pressable,
+  StatusBar,
   StyleSheet,
   Text,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BrandAssets, HomeIconAssets } from "../assets";
+import { SwipeBackContainer } from "../components/SwipeBackContainer";
 import { useApp } from "../state/AppContext";
 import { colors, isAndroid, radii, spacing, statusBarHeight, typography } from "../theme";
 
@@ -34,11 +37,21 @@ export function IntroModal() {
       visible={isIntroOpen}
       animationType="fade"
       transparent={false}
-      statusBarTranslucent={true}
+      statusBarTranslucent={false}
       onRequestClose={() => setIsIntroOpen(false)}
     >
-      <SafeAreaView style={styles.safeArea}>
-        {step === "splash" ? (
+      <SafeAreaView style={styles.safeArea} edges={["top", "bottom", "left", "right"]}>
+        <SwipeBackContainer
+          onBack={() => {
+            if (step === "onboarding") {
+              setStep("splash");
+            } else {
+              setIsIntroOpen(false);
+            }
+          }}
+          style={{ flex: 1 }}
+        >
+          {step === "splash" ? (
           /* ========================================================
              SCREEN 1: SPLASH / INTRO
              ======================================================== */
@@ -148,6 +161,7 @@ export function IntroModal() {
             </View>
           </View>
         )}
+        </SwipeBackContainer>
       </SafeAreaView>
     </Modal>
   );
@@ -157,7 +171,7 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.surface,
-    paddingTop: isAndroid ? statusBarHeight : 0,
+    paddingTop: Platform.OS === "android" ? Math.max(StatusBar.currentHeight || 28, 28) : 0,
   },
   container: {
     flex: 1,

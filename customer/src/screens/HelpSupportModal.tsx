@@ -4,13 +4,16 @@ import {
   Alert,
   Linking,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { SwipeBackContainer } from "../components/SwipeBackContainer";
 import { useApp } from "../state/AppContext";
 import { colors, isAndroid, radii, spacing, statusBarHeight } from "../theme";
 
@@ -57,10 +60,11 @@ export function HelpSupportModal() {
       visible={isHelpModalOpen}
       animationType="slide"
       transparent={false}
-      statusBarTranslucent={true}
+      statusBarTranslucent={false}
       onRequestClose={() => setIsHelpModalOpen(false)}
     >
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={styles.safeArea} edges={["top", "left", "right", "bottom"]}>
+        <SwipeBackContainer onBack={() => setIsHelpModalOpen(false)}>
         {/* ========================================================
             SCREEN 22: HELP & SUPPORT
             ======================================================== */}
@@ -149,6 +153,7 @@ export function HelpSupportModal() {
             })}
           </View>
         </ScrollView>
+        </SwipeBackContainer>
       </SafeAreaView>
     </Modal>
   );
@@ -158,7 +163,7 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.surface,
-    paddingTop: isAndroid ? statusBarHeight : 0,
+    paddingTop: Platform.OS === "android" ? Math.max(StatusBar.currentHeight || 28, 28) : 0,
   },
   header: {
     flexDirection: "row",
