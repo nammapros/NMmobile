@@ -12,7 +12,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { CategoryCardAssets, ServiceBannerAssets } from "../assets";
+import { CategoryCardAssets, HomeIconAssets, ServiceBannerAssets } from "../assets";
 import { formatInr, ServiceCard } from "../components/ServiceCard";
 import { SwipeBackContainer } from "../components/SwipeBackContainer";
 import { useApp } from "../state/AppContext";
@@ -22,7 +22,8 @@ import type { Service } from "../types";
 interface CategoryMeta {
   slug: string;
   label: string;
-  image: any;
+  icon: any;
+  banner: any;
   subTitle: string;
 }
 
@@ -30,55 +31,64 @@ const ALL_CATEGORIES: CategoryMeta[] = [
   {
     slug: "ac",
     label: "AC Service & Repair",
-    image: ServiceBannerAssets.ac,
+    icon: HomeIconAssets.ac,
+    banner: ServiceBannerAssets.ac,
     subTitle: "Cooling, foam jet & repair",
   },
   {
     slug: "appliances",
     label: "Appliance Services",
-    image: CategoryCardAssets.appliances,
+    icon: HomeIconAssets["appliance-services"],
+    banner: CategoryCardAssets.appliances,
     subTitle: "Washing machine, fridge, geyser",
   },
   {
     slug: "cleaning",
     label: "Deep Cleaning",
-    image: CategoryCardAssets.cleaning,
+    icon: HomeIconAssets["deep-cleaning"],
+    banner: CategoryCardAssets.cleaning,
     subTitle: "Bathroom, kitchen, full home",
   },
   {
     slug: "electrician",
     label: "Electrician",
-    image: CategoryCardAssets.electrician,
+    icon: HomeIconAssets.electrician,
+    banner: CategoryCardAssets.electrician,
     subTitle: "Wiring, switches, fuse & fan",
   },
   {
     slug: "plumber",
     label: "Plumber",
-    image: CategoryCardAssets.plumber,
+    icon: HomeIconAssets.plumber,
+    banner: CategoryCardAssets.plumber,
     subTitle: "Pipes, leakage, taps & drains",
   },
   {
     slug: "carpenter",
     label: "Carpenter",
-    image: CategoryCardAssets.carpenter,
+    icon: HomeIconAssets.carpenter,
+    banner: CategoryCardAssets.carpenter,
     subTitle: "Furniture, doors, locks & drilling",
   },
   {
     slug: "water-tank-cleaning",
     label: "Water Tank Cleaning",
-    image: ServiceBannerAssets["water-tank-cleaning"],
+    icon: HomeIconAssets["water-tank-cleaning"],
+    banner: ServiceBannerAssets["water-tank-cleaning"],
     subTitle: "Sludge removal & UV sanitize",
   },
   {
     slug: "sofa",
     label: "Sofa Repair",
-    image: ServiceBannerAssets.sofa,
+    icon: HomeIconAssets["sofa-repair"],
+    banner: ServiceBannerAssets.sofa,
     subTitle: "Upholstery, cushion & polish",
   },
   {
     slug: "mosquito-net",
     label: "Mosquito Net",
-    image: ServiceBannerAssets["mosquito-net"],
+    icon: HomeIconAssets["mosquito-net"],
+    banner: ServiceBannerAssets["mosquito-net"],
     subTitle: "Windows, doors & balconies",
   },
 ];
@@ -295,9 +305,10 @@ export function ServicesScreen() {
                   accessibilityLabel={cat.label}
                 >
                   <Image
-                    source={cat.image}
+                    source={cat.icon}
                     style={styles.suggestedCategoryImg}
                     resizeMode="contain"
+                    fadeDuration={0}
                   />
                   <Text style={styles.suggestedCategoryText}>{cat.label}</Text>
                 </Pressable>
@@ -320,18 +331,22 @@ export function ServicesScreen() {
               <Pressable
                 key={cat.slug}
                 onPress={() => handleSelectCategory(cat.slug)}
-                style={styles.categoryCard}
+                style={({ pressed }) => [
+                  styles.categoryIconTile,
+                  pressed && styles.categoryIconTilePressed,
+                ]}
                 accessibilityRole="button"
                 accessibilityLabel={cat.label}
               >
-                <View style={styles.categoryCardImageWrapper}>
+                <View style={styles.categoryIconBox}>
                   <Image
-                    source={cat.image}
-                    style={styles.categoryCardImg}
+                    source={cat.icon}
+                    style={styles.categoryIconImg}
                     resizeMode="contain"
+                    fadeDuration={0}
                   />
                 </View>
-                <Text style={styles.categoryCardTitle} numberOfLines={2}>
+                <Text style={styles.categoryIconTitle} numberOfLines={2}>
                   {cat.label}
                 </Text>
               </Pressable>
@@ -377,7 +392,7 @@ export function ServicesScreen() {
               {Boolean(currentCategory && !debouncedQuery) && (
                 <View style={styles.categoryHeroBanner}>
                   <Image
-                    source={currentCategory?.image}
+                    source={currentCategory?.banner}
                     style={styles.categoryHeroImg}
                     resizeMode="cover"
                     fadeDuration={0}
@@ -553,40 +568,40 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "space-between",
-    rowGap: spacing.md,
+    rowGap: spacing.xl,
+    paddingTop: spacing.xs,
   },
-  categoryCard: {
-    width: "48%",
-    backgroundColor: colors.surface,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-    padding: spacing.xs,
+  categoryIconTile: {
+    width: "31.5%",
     alignItems: "center",
-    shadowColor: colors.ink,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
+    justifyContent: "flex-start",
+    backgroundColor: "transparent",
+    borderWidth: 0,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: 2,
   },
-  categoryCardImageWrapper: {
-    width: "100%",
-    height: 100,
-    borderRadius: radii.md,
-    overflow: "hidden",
-    backgroundColor: colors.canvasWarm,
+  categoryIconTilePressed: {
+    opacity: 0.65,
+    transform: [{ scale: 0.95 }],
+  },
+  categoryIconBox: {
+    width: 64,
+    height: 64,
+    alignItems: "center",
+    justifyContent: "center",
     marginBottom: 6,
+    backgroundColor: "transparent",
   },
-  categoryCardImg: {
-    width: "100%",
-    height: "100%",
+  categoryIconImg: {
+    width: 60,
+    height: 60,
   },
-  categoryCardTitle: {
-    fontSize: 13,
+  categoryIconTitle: {
+    fontSize: 12,
     fontWeight: "700",
     color: colors.ink,
     textAlign: "center",
-    paddingBottom: 4,
+    lineHeight: 16,
   },
 
   // Screen 8: Category Hero & Service Listing
@@ -727,17 +742,15 @@ const styles = StyleSheet.create({
   },
   suggestedCategoryItem: {
     width: "30%",
-    backgroundColor: colors.surface,
-    borderRadius: radii.lg,
-    padding: spacing.sm,
+    backgroundColor: "transparent",
+    padding: spacing.xs,
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: colors.borderLight,
+    borderWidth: 0,
     gap: 4,
   },
   suggestedCategoryImg: {
-    width: 44,
-    height: 44,
+    width: 48,
+    height: 48,
   },
   suggestedCategoryText: {
     fontSize: 11,
