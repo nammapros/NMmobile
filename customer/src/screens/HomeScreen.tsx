@@ -70,6 +70,7 @@ export function HomeScreen() {
             source={BrandAssets.technicianCutout}
             style={styles.heroTechnicianImg}
             resizeMode="contain"
+            fadeDuration={0}
           />
         </View>
       </View>
@@ -129,6 +130,7 @@ export function HomeScreen() {
                 source={spot.image}
                 style={styles.spotlightImage}
                 resizeMode="cover"
+                fadeDuration={0}
               />
             </Pressable>
           ))}

@@ -1,9 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
   Image,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -94,6 +95,20 @@ export function ServicesScreen() {
   } = useApp();
 
   const [isSearchActive, setIsSearchActive] = useState(false);
+  const [localSearch, setLocalSearch] = useState(searchQuery);
+  const [debouncedQuery, setDebouncedQuery] = useState(searchQuery);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedQuery(localSearch);
+    }, 120);
+    return () => clearTimeout(handler);
+  }, [localSearch]);
+
+  useEffect(() => {
+    setLocalSearch(searchQuery);
+    setDebouncedQuery(searchQuery);
+  }, [searchQuery]);
 
   const services = catalog?.services ?? [];
 
@@ -118,23 +133,24 @@ export function ServicesScreen() {
       });
     }
 
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase().trim();
+    const query = debouncedQuery.trim().toLowerCase();
+    if (query) {
       list = list.filter(
         (s) =>
-          s.name?.toLowerCase().includes(q) ||
-          s.summary?.toLowerCase().includes(q) ||
-          s.description?.toLowerCase().includes(q) ||
-          s.category_name?.toLowerCase().includes(q)
+          s.name?.toLowerCase().includes(query) ||
+          s.summary?.toLowerCase().includes(query) ||
+          s.description?.toLowerCase().includes(query) ||
+          s.category_name?.toLowerCase().includes(query)
       );
     }
 
     return list;
-  }, [services, selectedCategorySlug, searchQuery]);
+  }, [services, selectedCategorySlug, debouncedQuery]);
 
   const handleSelectCategory = (catSlug: string) => {
     setSelectedCategorySlug(catSlug);
     setSearchQuery("");
+    setLocalSearch("");
   };
 
   const handleBack = () => {
@@ -144,6 +160,11 @@ export function ServicesScreen() {
       setActiveTab("home");
     }
   };
+
+  const renderServiceItem = useCallback(
+    ({ item }: { item: Service }) => <ServiceCard service={item} />,
+    []
+  );
 
   return (
     <View style={styles.container}>
@@ -181,20 +202,25 @@ export function ServicesScreen() {
       </View>
 
       {/* Expandable Search Input */}
-      {Boolean(isSearchActive || searchQuery.length > 0) && (
+      {Boolean(isSearchActive || localSearch.length > 0) && (
         <View style={styles.searchContainer}>
           <View style={styles.searchBar}>
             <Ionicons name="search" size={17} color={colors.muted} />
             <TextInput
               placeholder="Search services (e.g. Foam jet, inspection)…"
               placeholderTextColor={colors.subtle}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
+              value={localSearch}
+              onChangeText={setLocalSearch}
               style={styles.searchInput}
               autoFocus
             />
-            {Boolean(searchQuery.length > 0) && (
-              <Pressable onPress={() => setSearchQuery("")}>
+            {Boolean(localSearch.length > 0) && (
+              <Pressable
+                onPress={() => {
+                  setLocalSearch("");
+                  setSearchQuery("");
+                }}
+              >
                 <Ionicons name="close-circle" size={17} color={colors.muted} />
               </Pressable>
             )}
@@ -205,7 +231,7 @@ export function ServicesScreen() {
       {/* ========================================================
           MODE A: ALL CATEGORIES GRID (Screen 7 in Mockup)
           ======================================================== */}
-      {!selectedCategorySlug && !searchQuery ? (
+      {!selectedCategorySlug && !debouncedQuery ? (
         <ScrollView
           style={styles.content}
           contentContainerStyle={styles.categoryGridContent}
@@ -239,76 +265,85 @@ export function ServicesScreen() {
         /* ========================================================
            MODE B: SERVICE LISTING (Screen 8 in Mockup)
            ======================================================== */
-        <ScrollView
+        <FlatList
+          data={filteredServices}
+          keyExtractor={(item) => item.id}
+          renderItem={renderServiceItem}
+          initialNumToRender={6}
+          maxToRenderPerBatch={6}
+          windowSize={5}
+          removeClippedSubviews={Platform.OS === "android"}
+          showsVerticalScrollIndicator={false}
           style={styles.content}
           contentContainerStyle={styles.serviceListContent}
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Top Banner Image for Category */}
-          {Boolean(currentCategory) && (
-            <View style={styles.categoryHeroBanner}>
-              <Image
-                source={currentCategory?.image}
-                style={styles.categoryHeroImg}
-                resizeMode="cover"
-              />
-              <View style={styles.bannerOverlay}>
-                <Text style={styles.bannerOverlayTitle}>
-                  {currentCategory?.label}
-                </Text>
-                <Text style={styles.bannerOverlaySub}>
-                  {currentCategory?.subTitle}
-                </Text>
-              </View>
-            </View>
-          )}
+          ListHeaderComponent={
+            <View>
+              {/* Top Banner Image for Category */}
+              {Boolean(currentCategory) && (
+                <View style={styles.categoryHeroBanner}>
+                  <Image
+                    source={currentCategory?.image}
+                    style={styles.categoryHeroImg}
+                    resizeMode="cover"
+                    fadeDuration={0}
+                  />
+                  <View style={styles.bannerOverlay}>
+                    <Text style={styles.bannerOverlayTitle}>
+                      {currentCategory?.label}
+                    </Text>
+                    <Text style={styles.bannerOverlaySub}>
+                      {currentCategory?.subTitle}
+                    </Text>
+                  </View>
+                </View>
+              )}
 
-          {/* Quick Sub-category Pill Chips */}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.chipsScroll}
-          >
-            <Pressable
-              onPress={() => setSelectedCategorySlug(null)}
-              style={styles.chipPill}
-            >
-              <Text style={styles.chipPillText}>All Categories</Text>
-            </Pressable>
-            {ALL_CATEGORIES.map((c) => {
-              const isSelected = selectedCategorySlug === c.slug;
-              return (
+              {/* Quick Sub-category Pill Chips */}
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.chipsScroll}
+              >
                 <Pressable
-                  key={c.slug}
-                  onPress={() => handleSelectCategory(c.slug)}
-                  style={[styles.chipPill, isSelected && styles.chipPillActive]}
+                  onPress={() => setSelectedCategorySlug(null)}
+                  style={styles.chipPill}
                 >
-                  <Text
-                    style={[
-                      styles.chipPillText,
-                      isSelected && styles.chipPillTextActive,
-                    ]}
-                  >
-                    {c.label}
-                  </Text>
+                  <Text style={styles.chipPillText}>All Categories</Text>
                 </Pressable>
-              );
-            })}
-          </ScrollView>
+                {ALL_CATEGORIES.map((c) => {
+                  const isSelected = selectedCategorySlug === c.slug;
+                  return (
+                    <Pressable
+                      key={c.slug}
+                      onPress={() => handleSelectCategory(c.slug)}
+                      style={[styles.chipPill, isSelected && styles.chipPillActive]}
+                    >
+                      <Text
+                        style={[
+                          styles.chipPillText,
+                          isSelected && styles.chipPillTextActive,
+                        ]}
+                      >
+                        {c.label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
 
-          {/* Services List */}
-          <View style={styles.servicesSection}>
-            <Text style={styles.servicesCount}>
-              {filteredServices.length} services available
-            </Text>
-
-            {loadingCatalog && filteredServices.length === 0 ? (
+              <Text style={styles.servicesCount}>
+                {filteredServices.length} services available
+              </Text>
+            </View>
+          }
+          ListEmptyComponent={
+            loadingCatalog && filteredServices.length === 0 ? (
               <ActivityIndicator
                 size="large"
                 color={colors.primary}
                 style={{ marginVertical: 32 }}
               />
-            ) : filteredServices.length === 0 ? (
+            ) : (
               <View style={styles.emptyBox}>
                 <Ionicons name="construct-outline" size={40} color={colors.subtle} />
                 <Text style={styles.emptyTitle}>No services found</Text>
@@ -316,13 +351,9 @@ export function ServicesScreen() {
                   Try selecting another category or clear your search query.
                 </Text>
               </View>
-            ) : (
-              filteredServices.map((service) => (
-                <ServiceCard key={service.id} service={service} />
-              ))
-            )}
-          </View>
-        </ScrollView>
+            )
+          }
+        />
       )}
     </View>
   );

@@ -109,7 +109,10 @@ export const CategoryCardAssets: Record<string, ImageSourcePropType> = {
   "mosquito-net": require("../assets/images/service-icons-np/mosquito_net.png"),
 };
 
+const imageSourceCache = new Map<string, ImageSourcePropType>();
+
 export function getServiceImage(service?: {
+  id?: string;
   slug?: string;
   category?: string;
   name?: string;
@@ -124,77 +127,94 @@ export function getServiceImage(service?: {
 }): ImageSourcePropType {
   if (!service) return ServiceBannerAssets.ac;
 
-  // 1. Live image URL from backend (Cloudinary / HTTPS / Direct)
-  const candidateUrl =
+  const cacheKey =
+    service.id ||
+    service.slug ||
     service.list_image ||
     service.main_image ||
-    service.cover_image ||
-    service.landing_thumbnail ||
-    service.banner_image ||
-    service.popup_cover_image ||
-    service.popup_content_image ||
-    service.image_url;
+    service.name ||
+    "default";
 
-  if (candidateUrl && typeof candidateUrl === "string" && candidateUrl.trim().length > 0) {
-    const trimmed = candidateUrl.trim();
-    if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
-      return { uri: trimmed };
-    }
-    if (trimmed.startsWith("/")) {
-      // Check if it matches a local banner asset filename
-      const filename = trimmed.split("/").pop()?.replace(/\.[^/.]+$/, "") || "";
-      if (filename && ServiceBannerAssets[filename]) {
-        return ServiceBannerAssets[filename];
+  const cached = imageSourceCache.get(cacheKey);
+  if (cached) return cached;
+
+  const resolve = (): ImageSourcePropType => {
+    // 1. Live image URL from backend (Cloudinary / HTTPS / Direct)
+    const candidateUrl =
+      service.list_image ||
+      service.main_image ||
+      service.cover_image ||
+      service.landing_thumbnail ||
+      service.banner_image ||
+      service.popup_cover_image ||
+      service.popup_content_image ||
+      service.image_url;
+
+    if (candidateUrl && typeof candidateUrl === "string" && candidateUrl.trim().length > 0) {
+      const trimmed = candidateUrl.trim();
+      if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+        return { uri: trimmed };
       }
-      return { uri: `https://nammapros.com${trimmed}` };
+      if (trimmed.startsWith("/")) {
+        // Check if it matches a local banner asset filename
+        const filename = trimmed.split("/").pop()?.replace(/\.[^/.]+$/, "") || "";
+        if (filename && ServiceBannerAssets[filename]) {
+          return ServiceBannerAssets[filename];
+        }
+        return { uri: `https://nammapros.com${trimmed}` };
+      }
     }
-  }
 
-  // 2. Curated fallback based on slug, category, name keywords
-  const cat = (service.category || "").toLowerCase();
-  const slug = (service.slug || "").toLowerCase();
-  const name = (service.name || "").toLowerCase();
-  const combined = `${slug} ${cat} ${name}`;
+    // 2. Curated fallback based on slug, category, name keywords
+    const cat = (service.category || "").toLowerCase();
+    const slug = (service.slug || "").toLowerCase();
+    const name = (service.name || "").toLowerCase();
+    const combined = `${slug} ${cat} ${name}`;
 
-  if (combined.includes("tank") || combined.includes("water tank")) {
-    return ServiceBannerAssets["water-tank-cleaning"];
-  }
-  if (combined.includes("mosquito")) {
-    return ServiceBannerAssets["mosquito-net"];
-  }
-  if (combined.includes("sofa")) {
-    return ServiceBannerAssets.sofa;
-  }
-  if (combined.includes("electrician") || combined.includes("wiring") || combined.includes("fuse")) {
-    return ServiceBannerAssets.electrician;
-  }
-  if (combined.includes("plumber") || combined.includes("pipe") || combined.includes("leak")) {
-    return ServiceBannerAssets.plumber;
-  }
-  if (combined.includes("carpenter") || combined.includes("furniture") || combined.includes("wood")) {
-    return ServiceBannerAssets.carpenter;
-  }
-  if (combined.includes("bathroom")) {
-    return HomeIconAssets["bathroom-cleaning"];
-  }
-  if (combined.includes("kitchen")) {
-    return HomeIconAssets["kitchen-cleaning"];
-  }
-  if (combined.includes("full house") || combined.includes("home cleaning")) {
-    return HomeIconAssets["full-house-cleaning"];
-  }
-  if (combined.includes("clean")) {
-    return ServiceBannerAssets.cleaning;
-  }
-  if (combined.includes("appliance")) {
-    return ServiceBannerAssets.appliances;
-  }
-
-  for (const key of Object.keys(ServiceBannerAssets)) {
-    if (combined.includes(key)) {
-      return ServiceBannerAssets[key];
+    if (combined.includes("tank") || combined.includes("water tank")) {
+      return ServiceBannerAssets["water-tank-cleaning"];
     }
-  }
+    if (combined.includes("mosquito")) {
+      return ServiceBannerAssets["mosquito-net"];
+    }
+    if (combined.includes("sofa")) {
+      return ServiceBannerAssets.sofa;
+    }
+    if (combined.includes("electrician") || combined.includes("wiring") || combined.includes("fuse")) {
+      return ServiceBannerAssets.electrician;
+    }
+    if (combined.includes("plumber") || combined.includes("pipe") || combined.includes("leak")) {
+      return ServiceBannerAssets.plumber;
+    }
+    if (combined.includes("carpenter") || combined.includes("furniture") || combined.includes("wood")) {
+      return ServiceBannerAssets.carpenter;
+    }
+    if (combined.includes("bathroom")) {
+      return HomeIconAssets["bathroom-cleaning"];
+    }
+    if (combined.includes("kitchen")) {
+      return HomeIconAssets["kitchen-cleaning"];
+    }
+    if (combined.includes("full house") || combined.includes("home cleaning")) {
+      return HomeIconAssets["full-house-cleaning"];
+    }
+    if (combined.includes("clean")) {
+      return ServiceBannerAssets.cleaning;
+    }
+    if (combined.includes("appliance")) {
+      return ServiceBannerAssets.appliances;
+    }
 
-  return ServiceBannerAssets.ac;
+    for (const key of Object.keys(ServiceBannerAssets)) {
+      if (combined.includes(key)) {
+        return ServiceBannerAssets[key];
+      }
+    }
+
+    return ServiceBannerAssets.ac;
+  };
+
+  const result = resolve();
+  imageSourceCache.set(cacheKey, result);
+  return result;
 }

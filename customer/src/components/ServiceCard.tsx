@@ -12,7 +12,7 @@ export function formatInr(paise?: number | null): string {
   return `₹${rupees.toLocaleString("en-IN")}`;
 }
 
-export function ServiceCard({ service }: { service: Service }) {
+export const ServiceCard = React.memo(function ServiceCard({ service }: { service: Service }) {
   const { cartItems, addToCart, updateQuantity, setDetailService } = useApp();
 
   const defaultPkg: Package =
@@ -66,6 +66,7 @@ export function ServiceCard({ service }: { service: Service }) {
           source={bannerSource}
           style={styles.bannerImage}
           resizeMode="cover"
+          fadeDuration={0}
         />
 
         {/* Rating Pill */}
@@ -143,10 +144,10 @@ export function ServiceCard({ service }: { service: Service }) {
       </View>
     </Pressable>
   );
-}
+});
 
 /** Most Booked Services Square Card matching Web Card */
-export function MostBookedCard({
+export const MostBookedCard = React.memo(function MostBookedCard({
   service,
   onOpen,
 }: {
@@ -185,6 +186,7 @@ export function MostBookedCard({
             source={bannerSource}
             style={styles.mostBookedImg}
             resizeMode="cover"
+            fadeDuration={0}
           />
         </Pressable>
 
@@ -231,7 +233,7 @@ export function MostBookedCard({
       </Pressable>
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   card: {

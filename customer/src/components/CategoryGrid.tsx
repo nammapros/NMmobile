@@ -125,6 +125,7 @@ export function CategoryGrid() {
                     source={iconSource}
                     style={styles.tileImage}
                     resizeMode="contain"
+                    fadeDuration={0}
                   />
                 ) : (
                   <Ionicons name="sparkles" size={28} color={colors.primary} />
@@ -191,6 +192,7 @@ export function CategoryGrid() {
                             source={subIconSource}
                             style={styles.subTileImage}
                             resizeMode="contain"
+                            fadeDuration={0}
                           />
                         ) : (
                           <Ionicons name="sparkles" size={24} color={colors.primary} />

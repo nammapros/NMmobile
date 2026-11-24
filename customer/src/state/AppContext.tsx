@@ -153,13 +153,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [searchQuery, setSearchQuery] = useState("");
 
   const refreshCatalog = async () => {
-    setLoadingCatalog(true);
+    if (!catalog) setLoadingCatalog(true);
     setCatalogError(null);
     try {
       const data = await api.catalog();
       setCatalog(data);
     } catch (err: any) {
-      setCatalogError(err.message || "Failed to load services. Please check your network.");
+      if (!catalog) {
+        setCatalogError(err.message || "Failed to load services. Please check your network.");
+      }
     } finally {
       setLoadingCatalog(false);
     }

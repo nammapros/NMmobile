@@ -275,6 +275,13 @@ async function tryRefreshToken(): Promise<boolean> {
 // Live API Methods
 // -------------------------------------------------------------
 
+let cachedCatalog: CatalogResponse | null = null;
+let catalogCacheTimestamp = 0;
+const CATALOG_CACHE_TTL = 3 * 60 * 1000; // 3 minutes
+
+const serviceDetailCache = new Map<string, { data: Service; timestamp: number }>();
+const SERVICE_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
 export const api = {
   // Test backend connectivity & ping
   ping: async (url?: string): Promise<{ success: boolean; latencyMs: number }> => {
@@ -303,14 +310,27 @@ export const api = {
   },
 
   // 1. Fetch live catalog (Categories, Services, Reviews, Banners, Trust Stats)
-  catalog: async (): Promise<CatalogResponse> => {
-    return request<CatalogResponse>("/catalog/");
+  catalog: async (forceRefresh = false): Promise<CatalogResponse> => {
+    if (!forceRefresh && cachedCatalog && Date.now() - catalogCacheTimestamp < CATALOG_CACHE_TTL) {
+      return cachedCatalog;
+    }
+    const data = await request<CatalogResponse>("/catalog/");
+    cachedCatalog = data;
+    catalogCacheTimestamp = Date.now();
+    return data;
   },
 
   // 2. Fetch specific service detail
-  serviceDetail: async (slug: string, pincode?: string): Promise<Service> => {
+  serviceDetail: async (slug: string, pincode?: string, forceRefresh = false): Promise<Service> => {
+    const cacheKey = `${slug}:${pincode || ""}`;
+    const cached = serviceDetailCache.get(cacheKey);
+    if (!forceRefresh && cached && Date.now() - cached.timestamp < SERVICE_CACHE_TTL) {
+      return cached.data;
+    }
     const q = pincode ? `?pincode=${encodeURIComponent(pincode)}` : "";
-    return request<Service>(`/services/${encodeURIComponent(slug)}/${q}`);
+    const data = await request<Service>(`/services/${encodeURIComponent(slug)}/${q}`);
+    serviceDetailCache.set(cacheKey, { data, timestamp: Date.now() });
+    return data;
   },
 
   // 3. Fetch public booking slots

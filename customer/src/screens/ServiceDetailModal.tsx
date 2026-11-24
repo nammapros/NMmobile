@@ -200,6 +200,7 @@ export function ServiceDetailModal() {
               source={getServiceImage(currentService)}
               style={styles.heroImage}
               resizeMode="cover"
+              fadeDuration={0}
             />
             {/* Dark gradient vignette overlay at top for back button contrast */}
             <View style={styles.heroOverlay} />
