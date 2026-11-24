@@ -25,10 +25,27 @@ export function HomeScreen() {
     setSelectedCategorySlug,
     selectedCity,
     setDetailService,
+    setSearchQuery,
+    activeTrackingBooking,
+    setActiveTrackingBooking,
   } = useApp();
 
   const services = catalog?.services ?? [];
   const trust = catalog?.trust_stats;
+
+  const HOME_TRENDING = [
+    { label: "🔥 Foam Jet AC", query: "foam jet" },
+    { label: "💧 Tank Cleaning", query: "tank" },
+    { label: "🧺 Washing Machine", query: "washing machine" },
+    { label: "⚡ Electrician", query: "electrician" },
+    { label: "🚿 Plumber", query: "plumber" },
+    { label: "🛋️ Sofa Cleaning", query: "sofa" },
+  ];
+
+  const handleQuickSearch = (query: string) => {
+    setSearchQuery(query);
+    setActiveTab("services");
+  };
 
   return (
     <ScrollView
@@ -47,6 +64,73 @@ export function HomeScreen() {
       {/* ========================================================
           SCREEN 6: HOME DASHBOARD
           ======================================================== */}
+
+      {/* 0. Quick Search Trigger Bar with Trending Pills */}
+      <View style={styles.searchSection}>
+        <Pressable
+          onPress={() => handleQuickSearch("")}
+          style={styles.searchBarTrigger}
+          accessibilityRole="button"
+          accessibilityLabel="Search services"
+        >
+          <Ionicons name="search" size={18} color={colors.primary} />
+          <Text style={styles.searchBarPlaceholder}>
+            Search for AC, cleaning, plumbing, repairs…
+          </Text>
+        </Pressable>
+
+        {/* Horizontal Trending Chips */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.homeTrendingScroll}
+        >
+          {HOME_TRENDING.map((t, idx) => (
+            <Pressable
+              key={idx}
+              onPress={() => handleQuickSearch(t.query)}
+              style={styles.homeTrendingPill}
+              accessibilityRole="button"
+              accessibilityLabel={t.label}
+            >
+              <Text style={styles.homeTrendingText}>{t.label}</Text>
+            </Pressable>
+          ))}
+        </ScrollView>
+      </View>
+
+      {/* Ongoing Booking Tracker Card (if active booking exists) */}
+      {Boolean(activeTrackingBooking) && (
+        <Pressable
+          onPress={() => {
+            setActiveTab("bookings");
+          }}
+          style={styles.activeBookingCard}
+          accessibilityRole="button"
+          accessibilityLabel="Track live booking"
+        >
+          <View style={styles.activeBookingTop}>
+            <View style={styles.activeBookingBadge}>
+              <View style={styles.livePulseDot} />
+              <Text style={styles.activeBookingBadgeText}>LIVE TRACKING</Text>
+            </View>
+            <Text style={styles.activeBookingEta}>Arriving in ~15 mins</Text>
+          </View>
+          <View style={styles.activeBookingMiddle}>
+            <Text style={styles.activeBookingTitle}>
+              {activeTrackingBooking?.service_name || activeTrackingBooking?.service}
+            </Text>
+            <Text style={styles.activeBookingSub}>
+              {activeTrackingBooking?.technician?.display_name || "Ramesh K."} • On the way
+            </Text>
+          </View>
+          <View style={styles.activeBookingFooter}>
+            <Ionicons name="navigate-circle" size={16} color={colors.primary} />
+            <Text style={styles.activeBookingActionText}>View Live Route &amp; Call</Text>
+            <Ionicons name="chevron-forward" size={14} color={colors.primary} />
+          </View>
+        </Pressable>
+      )}
 
       {/* 1. Hero Banner Card */}
       <View style={styles.heroBannerCard}>
@@ -158,6 +242,122 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingBottom: 90,
+  },
+
+  // 0. Quick Search & Trending Pills
+  searchSection: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    gap: spacing.sm,
+  },
+  searchBarTrigger: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 11,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    gap: spacing.sm,
+    shadowColor: colors.ink,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  searchBarPlaceholder: {
+    fontSize: 13,
+    color: colors.muted,
+    flex: 1,
+  },
+  homeTrendingScroll: {
+    gap: spacing.xs,
+    paddingVertical: 2,
+  },
+  homeTrendingPill: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: radii.pill,
+  },
+  homeTrendingText: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: colors.ink,
+  },
+
+  // Ongoing Booking Tracker Card
+  activeBookingCard: {
+    backgroundColor: "#FDF4F6",
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.md,
+    padding: spacing.md,
+    borderRadius: radii.xl,
+    borderWidth: 1.5,
+    borderColor: colors.primarySoft,
+    gap: 6,
+  },
+  activeBookingTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  activeBookingBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: colors.white,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radii.pill,
+  },
+  livePulseDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: "#16A34A",
+  },
+  activeBookingBadgeText: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: colors.primary,
+    letterSpacing: 0.5,
+  },
+  activeBookingEta: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: colors.primary,
+  },
+  activeBookingMiddle: {
+    marginTop: 2,
+  },
+  activeBookingTitle: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: colors.ink,
+  },
+  activeBookingSub: {
+    fontSize: 12,
+    color: colors.muted,
+    marginTop: 1,
+  },
+  activeBookingFooter: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginTop: 4,
+    paddingTop: 6,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(128,0,32,0.1)",
+  },
+  activeBookingActionText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: colors.primary,
+    flex: 1,
   },
 
   // 1. Hero Banner Card matching Screen 6

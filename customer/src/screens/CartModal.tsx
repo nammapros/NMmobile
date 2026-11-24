@@ -4,7 +4,9 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Linking,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -120,6 +122,29 @@ export function CartModal() {
     try {
       const scheduledDateStr = `2026-11-${String(selectedDateDay).padStart(2, "0")}`;
       const slotStr = TIME_SLOTS[selectedSlotIndex];
+
+      // Trigger native UPI intent if installed on device
+      const totalRupees = Math.round(totalPaise / 100);
+      const orderRef = `NP${Math.floor(100000 + Math.random() * 900000)}`;
+      const upiBase = `upi://pay?pa=nammapros@icici&pn=NammaPros&am=${totalRupees}&cu=INR&tn=Booking-${orderRef}`;
+
+      let appUri = upiBase;
+      if (selectedUpiApp === "gpay") {
+        appUri = Platform.OS === "android" ? `tez://upi/pay?pa=nammapros@icici&pn=NammaPros&am=${totalRupees}&cu=INR&tn=Booking-${orderRef}` : upiBase;
+      } else if (selectedUpiApp === "phonepe") {
+        appUri = `phonepe://pay?pa=nammapros@icici&pn=NammaPros&am=${totalRupees}&cu=INR&tn=Booking-${orderRef}`;
+      } else if (selectedUpiApp === "paytm") {
+        appUri = `paytmmp://pay?pa=nammapros@icici&pn=NammaPros&am=${totalRupees}&cu=INR&tn=Booking-${orderRef}`;
+      }
+
+      try {
+        const canLaunch = await Linking.canOpenURL(appUri);
+        if (canLaunch) {
+          await Linking.openURL(appUri);
+        }
+      } catch {
+        // Fallback gracefully on web or simulator
+      }
 
       const res = await api.createBooking({
         service_id: cartItems[0]?.service.id || "svc-1",
@@ -242,7 +267,7 @@ export function CartModal() {
       visible={isCartOpen}
       animationType="slide"
       transparent={false}
-      statusBarTranslucent={true}
+      statusBarTranslucent={false}
       onRequestClose={() => {
         if (currentStep === "cart" || currentStep === "confirmed") {
           setIsCartOpen(false);
@@ -256,7 +281,7 @@ export function CartModal() {
         }
       }}
     >
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={styles.safeArea} edges={["top", "left", "right", "bottom"]}>
         {/* ========================================================
             HEADER
             ======================================================== */}

@@ -82,6 +82,17 @@ const ALL_CATEGORIES: CategoryMeta[] = [
   },
 ];
 
+const TRENDING_SEARCHES = [
+  { label: "Foam Jet AC", query: "foam jet", icon: "snow-outline" },
+  { label: "Water Tank Clean", query: "tank", icon: "water-outline" },
+  { label: "Washing Machine", query: "washing machine", icon: "refresh-outline" },
+  { label: "Switchboard & MCB", query: "electrician", icon: "flash-outline" },
+  { label: "Tap & Pipe Leak", query: "plumber", icon: "construct-outline" },
+  { label: "Sofa Deep Clean", query: "sofa", icon: "color-wand-outline" },
+  { label: "Mosquito Net Fit", query: "mosquito", icon: "grid-outline" },
+  { label: "Full House Clean", query: "cleaning", icon: "sparkles-outline" },
+];
+
 export function ServicesScreen() {
   const {
     catalog,
@@ -229,9 +240,70 @@ export function ServicesScreen() {
       )}
 
       {/* ========================================================
-          MODE A: ALL CATEGORIES GRID (Screen 7 in Mockup)
+          MODE A: TRENDING SEARCHES & SUGGESTIONS (when search bar is focused)
           ======================================================== */}
-      {!selectedCategorySlug && !debouncedQuery ? (
+      {Boolean(isSearchActive && !debouncedQuery) ? (
+        <ScrollView
+          style={styles.content}
+          contentContainerStyle={styles.suggestionsScrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* Trending Searches Section */}
+          <View style={styles.suggestionsSection}>
+            <View style={styles.suggestionSectionHeader}>
+              <Ionicons name="flame" size={18} color={colors.primary} />
+              <Text style={styles.suggestionSectionTitle}>Trending Searches</Text>
+            </View>
+            <View style={styles.trendingChipsWrap}>
+              {TRENDING_SEARCHES.map((item, idx) => (
+                <Pressable
+                  key={idx}
+                  onPress={() => {
+                    setLocalSearch(item.query);
+                    setSearchQuery(item.query);
+                  }}
+                  style={styles.trendingChip}
+                  accessibilityRole="button"
+                  accessibilityLabel={item.label}
+                >
+                  <Ionicons name={item.icon as any} size={14} color={colors.primary} />
+                  <Text style={styles.trendingChipText}>{item.label}</Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+
+          {/* Quick Categories Section */}
+          <View style={styles.suggestionsSection}>
+            <Text style={styles.suggestionSectionTitle}>Browse Popular Categories</Text>
+            <View style={styles.suggestedCategoriesGrid}>
+              {ALL_CATEGORIES.slice(0, 6).map((cat) => (
+                <Pressable
+                  key={cat.slug}
+                  onPress={() => {
+                    handleSelectCategory(cat.slug);
+                    setIsSearchActive(false);
+                  }}
+                  style={styles.suggestedCategoryItem}
+                  accessibilityRole="button"
+                  accessibilityLabel={cat.label}
+                >
+                  <Image
+                    source={cat.image}
+                    style={styles.suggestedCategoryImg}
+                    resizeMode="contain"
+                  />
+                  <Text style={styles.suggestedCategoryText}>{cat.label}</Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+        </ScrollView>
+      ) : !selectedCategorySlug && !debouncedQuery ? (
+        /* ========================================================
+           MODE B: ALL CATEGORIES GRID (Screen 7 in Mockup)
+           ======================================================== */
         <ScrollView
           style={styles.content}
           contentContainerStyle={styles.categoryGridContent}
@@ -263,7 +335,7 @@ export function ServicesScreen() {
         </ScrollView>
       ) : (
         /* ========================================================
-           MODE B: SERVICE LISTING (Screen 8 in Mockup)
+           MODE C: SERVICE LISTING (Screen 8 in Mockup)
            ======================================================== */
         <FlatList
           data={filteredServices}
@@ -278,8 +350,26 @@ export function ServicesScreen() {
           contentContainerStyle={styles.serviceListContent}
           ListHeaderComponent={
             <View>
-              {/* Top Banner Image for Category */}
-              {Boolean(currentCategory) && (
+              {/* Search Active Summary Bar */}
+              {Boolean(debouncedQuery) && (
+                <View style={styles.searchSummaryBar}>
+                  <Text style={styles.searchSummaryText}>
+                    Found {filteredServices.length} {filteredServices.length === 1 ? "service" : "services"} for "{debouncedQuery}"
+                  </Text>
+                  <Pressable
+                    onPress={() => {
+                      setLocalSearch("");
+                      setSearchQuery("");
+                      setIsSearchActive(false);
+                    }}
+                  >
+                    <Text style={styles.searchClearBtnText}>Clear</Text>
+                  </Pressable>
+                </View>
+              )}
+
+              {/* Top Banner Image for Category (if not in search query mode) */}
+              {Boolean(currentCategory && !debouncedQuery) && (
                 <View style={styles.categoryHeroBanner}>
                   <Image
                     source={currentCategory?.image}
@@ -305,10 +395,24 @@ export function ServicesScreen() {
                 contentContainerStyle={styles.chipsScroll}
               >
                 <Pressable
-                  onPress={() => setSelectedCategorySlug(null)}
-                  style={styles.chipPill}
+                  onPress={() => {
+                    setSelectedCategorySlug(null);
+                    setSearchQuery("");
+                    setLocalSearch("");
+                  }}
+                  style={[
+                    styles.chipPill,
+                    !selectedCategorySlug && styles.chipPillActive,
+                  ]}
                 >
-                  <Text style={styles.chipPillText}>All Categories</Text>
+                  <Text
+                    style={[
+                      styles.chipPillText,
+                      !selectedCategorySlug && styles.chipPillTextActive,
+                    ]}
+                  >
+                    All Categories
+                  </Text>
                 </Pressable>
                 {ALL_CATEGORIES.map((c) => {
                   const isSelected = selectedCategorySlug === c.slug;
@@ -345,11 +449,29 @@ export function ServicesScreen() {
               />
             ) : (
               <View style={styles.emptyBox}>
-                <Ionicons name="construct-outline" size={40} color={colors.subtle} />
-                <Text style={styles.emptyTitle}>No services found</Text>
-                <Text style={styles.emptySub}>
-                  Try selecting another category or clear your search query.
+                <Ionicons name="search-outline" size={40} color={colors.subtle} />
+                <Text style={styles.emptyTitle}>
+                  {debouncedQuery
+                    ? `No services found for "${debouncedQuery}"`
+                    : "No services found"}
                 </Text>
+                <Text style={styles.emptySub}>
+                  Try checking the spelling or browse these popular suggestions:
+                </Text>
+                <View style={styles.emptySuggestionsWrap}>
+                  {TRENDING_SEARCHES.slice(0, 4).map((s, idx) => (
+                    <Pressable
+                      key={idx}
+                      onPress={() => {
+                        setLocalSearch(s.query);
+                        setSearchQuery(s.query);
+                      }}
+                      style={styles.emptySuggestionChip}
+                    >
+                      <Text style={styles.emptySuggestionText}>{s.label}</Text>
+                    </Pressable>
+                  ))}
+                </View>
               </View>
             )
           }
@@ -546,5 +668,118 @@ const styles = StyleSheet.create({
     color: colors.muted,
     textAlign: "center",
     maxWidth: 240,
+  },
+
+  // Search Suggestions & Trending Styles
+  suggestionsScrollContent: {
+    padding: spacing.lg,
+    paddingBottom: 60,
+    gap: spacing.xl,
+  },
+  suggestionsSection: {
+    gap: spacing.md,
+  },
+  suggestionSectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  suggestionSectionTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: colors.ink,
+  },
+  trendingChipsWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.sm,
+  },
+  trendingChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: colors.surface,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    shadowColor: colors.ink,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  trendingChipText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: colors.ink,
+  },
+  suggestedCategoriesGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.md,
+  },
+  suggestedCategoryItem: {
+    width: "30%",
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    padding: spacing.sm,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    gap: 4,
+  },
+  suggestedCategoryImg: {
+    width: 44,
+    height: 44,
+  },
+  suggestedCategoryText: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: colors.ink,
+    textAlign: "center",
+  },
+  searchSummaryBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    backgroundColor: "#FDF7F8",
+    borderBottomWidth: 1,
+    borderBottomColor: "#F5E6EA",
+  },
+  searchSummaryText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: colors.primary,
+    flex: 1,
+  },
+  searchClearBtnText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: colors.muted,
+  },
+  emptySuggestionsWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: spacing.sm,
+    marginTop: spacing.md,
+    paddingHorizontal: spacing.md,
+  },
+  emptySuggestionChip: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: radii.pill,
+  },
+  emptySuggestionText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: colors.primary,
   },
 });

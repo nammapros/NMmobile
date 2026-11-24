@@ -159,10 +159,27 @@ export function BookingsScreen() {
   };
 
   const handleOpenChat = () => {
-    Alert.alert(
-      "Live Chat",
-      "Technician chat connected: 'Hello! I am on my way to your Anna Nagar address and will reach around 2:15 PM.'"
-    );
+    const raw = activeTrackingBooking?.technician?.phone?.replace(/[^0-9]/g, "") || "919876500001";
+    const phone = raw.startsWith("91") ? raw : `91${raw}`;
+    const name = activeTrackingBooking?.technician?.display_name || "Ramesh";
+    const bookingRef = activeTrackingBooking?.id || "NP100456";
+    const msg = encodeURIComponent(`Hi ${name}, checking on my NammaPros booking #${bookingRef}.`);
+    const waUrl = `whatsapp://send?phone=${phone}&text=${msg}`;
+    const webWa = `https://wa.me/${phone}?text=${msg}`;
+
+    Linking.canOpenURL(waUrl)
+      .then((supported) => {
+        if (supported) {
+          return Linking.openURL(waUrl);
+        }
+        return Linking.openURL(webWa);
+      })
+      .catch(() => {
+        Alert.alert(
+          "Direct Message",
+          `Chat connected with ${name}: "On my way to your address, reaching in ~15 mins."`
+        );
+      });
   };
 
   const handleOpenRating = (booking: Booking) => {
@@ -311,15 +328,17 @@ export function BookingsScreen() {
           visible={Boolean(activeTrackingBooking)}
           animationType="slide"
           transparent={false}
-          statusBarTranslucent={true}
+          statusBarTranslucent={false}
           onRequestClose={() => setActiveTrackingBooking(null)}
         >
-          <SafeAreaView style={styles.trackingSafeArea}>
+          <SafeAreaView style={styles.trackingSafeArea} edges={["top", "left", "right", "bottom"]}>
             {/* Modal Header */}
             <View style={styles.trackingHeader}>
               <Pressable
                 onPress={() => setActiveTrackingBooking(null)}
                 style={styles.trackingHeaderBackBtn}
+                accessibilityRole="button"
+                accessibilityLabel="Back"
               >
                 <Ionicons name="arrow-back" size={24} color={colors.ink} />
               </Pressable>
@@ -334,6 +353,37 @@ export function BookingsScreen() {
               <View style={styles.onTheWayBanner}>
                 <Ionicons name="bicycle-outline" size={20} color={colors.primary} />
                 <Text style={styles.onTheWayText}>Our professional is on the way</Text>
+              </View>
+
+              {/* Service Status Stepper */}
+              <View style={styles.statusStepperCard}>
+                <View style={styles.stepperStepItem}>
+                  <View style={[styles.stepDot, styles.stepDotDone]}>
+                    <Ionicons name="checkmark" size={12} color={colors.white} />
+                  </View>
+                  <Text style={styles.stepLabelDone}>Confirmed</Text>
+                </View>
+                <View style={[styles.stepLine, styles.stepLineDone]} />
+                <View style={styles.stepperStepItem}>
+                  <View style={[styles.stepDot, styles.stepDotDone]}>
+                    <Ionicons name="checkmark" size={12} color={colors.white} />
+                  </View>
+                  <Text style={styles.stepLabelDone}>Assigned</Text>
+                </View>
+                <View style={[styles.stepLine, styles.stepLineActive]} />
+                <View style={styles.stepperStepItem}>
+                  <View style={[styles.stepDot, styles.stepDotActive]}>
+                    <Ionicons name="bicycle" size={13} color={colors.white} />
+                  </View>
+                  <Text style={styles.stepLabelActive}>On The Way</Text>
+                </View>
+                <View style={styles.stepLine} />
+                <View style={styles.stepperStepItem}>
+                  <View style={styles.stepDot}>
+                    <Ionicons name="time" size={11} color={colors.muted} />
+                  </View>
+                  <Text style={styles.stepLabel}>In Progress</Text>
+                </View>
               </View>
 
               {/* Simulated Live Route Map View */}
@@ -643,7 +693,6 @@ const styles = StyleSheet.create({
   trackingSafeArea: {
     flex: 1,
     backgroundColor: colors.surface,
-    paddingTop: isAndroid ? statusBarHeight : 0,
   },
   trackingHeader: {
     flexDirection: "row",
@@ -698,6 +747,68 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "700",
     color: colors.primary,
+  },
+
+  // Status Stepper Card
+  statusStepperCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  stepperStepItem: {
+    alignItems: "center",
+    gap: 4,
+    width: 60,
+  },
+  stepDot: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: colors.borderLight,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  stepDotDone: {
+    backgroundColor: "#16A34A",
+  },
+  stepDotActive: {
+    backgroundColor: colors.primary,
+  },
+  stepLine: {
+    flex: 1,
+    height: 2,
+    backgroundColor: colors.borderLight,
+    marginBottom: 16,
+  },
+  stepLineDone: {
+    backgroundColor: "#16A34A",
+  },
+  stepLineActive: {
+    backgroundColor: colors.primary,
+  },
+  stepLabel: {
+    fontSize: 10,
+    fontWeight: "500",
+    color: colors.muted,
+    textAlign: "center",
+  },
+  stepLabelDone: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#16A34A",
+    textAlign: "center",
+  },
+  stepLabelActive: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: colors.primary,
+    textAlign: "center",
   },
 
   // Simulated Map Container
