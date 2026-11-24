@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import React from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
-import { getServiceImage } from "../assets";
+import { getServiceImage, getServiceListImage } from "../assets";
 import { useApp } from "../state/AppContext";
 import { colors, radii, spacing } from "../theme";
 import type { Package, Service } from "../types";
@@ -12,12 +12,28 @@ export function formatInr(paise?: number | null): string {
   return `₹${rupees.toLocaleString("en-IN")}`;
 }
 
+function normalizeInclusions(val?: string[] | string): string[] {
+  if (!val) return [];
+  if (Array.isArray(val)) return val.filter(Boolean).map(String);
+  if (typeof val === "string") {
+    try {
+      const parsed = JSON.parse(val);
+      if (Array.isArray(parsed)) return parsed.filter(Boolean).map(String);
+    } catch {}
+    return val.split(/\r?\n/).map((s) => s.trim()).filter((s) => s.length > 0);
+  }
+  return [];
+}
+
 export const ServiceCard = React.memo(function ServiceCard({ service }: { service: Service }) {
   const { cartItems, addToCart, updateQuantity, setDetailService } = useApp();
 
+  const packages = service.packages && service.packages.length > 0 ? service.packages : [];
+  const options = packages.length;
+
   const defaultPkg: Package =
-    service.packages && service.packages.length > 0
-      ? service.packages[0]
+    options > 0
+      ? packages[0]
       : {
           id: `pkg-${service.id}`,
           name: service.name,
@@ -32,113 +48,180 @@ export const ServiceCard = React.memo(function ServiceCard({ service }: { servic
     (item) => item.service.id === service.id && item.pkg.id === defaultPkg.id
   );
 
-  const pricePaise = defaultPkg.price_paise ?? service.starting_price_paise ?? 49900;
-  const mrpPaise = service.starting_mrp_paise ?? Math.round(pricePaise * 1.25);
-  const showDiscount = mrpPaise > pricePaise;
+  const totalQtyInCart = cartItems
+    .filter((item) => item.service.id === service.id)
+    .reduce((sum, item) => sum + item.quantity, 0);
+
+  const unitPrice = defaultPkg.price_paise ?? service.starting_price_paise ?? null;
+  const mrpPrice =
+    defaultPkg.mrp_paise ??
+    defaultPkg.original_price_paise ??
+    service.starting_mrp_paise ??
+    (unitPrice ? Math.round(unitPrice * 1.25) : null);
+  const showStrike = mrpPrice != null && unitPrice != null && mrpPrice > unitPrice;
+  const duration = defaultPkg.duration_minutes;
+
+  const rawInclusions = defaultPkg.inclusions || service.inclusions;
+  const points: string[] = normalizeInclusions(rawInclusions).slice(0, 2);
+
+  const ratingAvg = service.average_rating ?? service.rating_avg;
+  const reviewCount = service.review_count ?? 0;
+  const isMostBooked = packages.some((p) => p.is_most_booked) || service.is_popular;
+
+  const onDetails = () => {
+    setDetailService(service);
+  };
 
   const handleAdd = (e: any) => {
     e?.stopPropagation?.();
-    addToCart(service, defaultPkg, 1);
+    if (options > 1) {
+      onDetails();
+    } else if (defaultPkg) {
+      addToCart(service, defaultPkg, 1);
+    }
   };
 
   const handleIncrement = (e: any) => {
     e?.stopPropagation?.();
-    updateQuantity(service.id, defaultPkg.id, 1);
+    if (defaultPkg) {
+      updateQuantity(service.id, defaultPkg.id, 1);
+    }
   };
 
   const handleDecrement = (e: any) => {
     e?.stopPropagation?.();
-    updateQuantity(service.id, defaultPkg.id, -1);
+    if (defaultPkg) {
+      updateQuantity(service.id, defaultPkg.id, -1);
+    }
   };
 
-  const bannerSource = getServiceImage(service);
+  const listImage = getServiceListImage(service);
 
   return (
     <Pressable
-      onPress={() => setDetailService(service)}
-      style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+      onPress={onDetails}
+      style={({ pressed }) => [styles.serviceRow, pressed && styles.serviceRowPressed]}
       accessibilityRole="button"
-      accessibilityLabel={`${service.name}, starting from ${formatInr(pricePaise)}`}
+      accessibilityLabel={`${service.name}, starting from ${formatInr(unitPrice)}`}
     >
-      {/* Top Banner Image with Aspect Ratio matching web */}
-      <View style={styles.imageContainer}>
-        <Image
-          source={bannerSource}
-          style={styles.bannerImage}
-          resizeMode="cover"
-          fadeDuration={0}
-        />
+      {/* ========================================================
+          LEFT COLUMN: Service Title, Rating, Price, Inclusions, View details
+          ======================================================== */}
+      <View style={styles.leftCol}>
+        {Boolean(isMostBooked) && (
+          <Text style={styles.mostBookedPill}>MOST BOOKED</Text>
+        )}
 
-        {/* Rating Pill */}
-        <View style={styles.ratingBadge}>
-          <Ionicons name="star" size={11} color={colors.gold} />
-          <Text style={styles.ratingText}>
-            {service.rating_avg ? service.rating_avg.toFixed(1) : "4.8"}
-          </Text>
-          <Text style={styles.ratingCount}>
-            ({service.review_count || 48})
-          </Text>
-        </View>
-      </View>
-
-      {/* Body Info */}
-      <View style={styles.body}>
-        <Text style={styles.title} numberOfLines={2}>
+        <Text style={styles.serviceName} numberOfLines={2}>
           {service.name}
         </Text>
 
-        <Text style={styles.summary} numberOfLines={2}>
-          {service.summary || service.short_description || "Professional service by verified technician"}
-        </Text>
-
-        {Boolean(defaultPkg.duration_minutes) && (
-          <View style={styles.durationRow}>
-            <Ionicons name="time-outline" size={12} color={colors.primary} />
-            <Text style={styles.durationText}>{defaultPkg.duration_minutes} mins</Text>
+        {Boolean(ratingAvg != null && reviewCount > 0) ? (
+          <View style={styles.ratingRow}>
+            <Ionicons name="star" size={12} color={colors.primary} />
+            <Text style={styles.ratingText}>
+              {ratingAvg != null ? ratingAvg.toFixed(1) : "4.8"} ({reviewCount} reviews)
+            </Text>
+          </View>
+        ) : (
+          <View style={styles.ratingRow}>
+            <Ionicons name="star" size={12} color={colors.gold} />
+            <Text style={styles.ratingText}>
+              {service.rating_avg ? service.rating_avg.toFixed(1) : "4.8"} (48 reviews)
+            </Text>
           </View>
         )}
 
-        {/* Footer: Price + Add Button */}
-        <View style={styles.footer}>
-          <View>
-            <View style={styles.priceRow}>
-              <Text style={styles.price}>{formatInr(pricePaise)}</Text>
-              {Boolean(showDiscount) && (
-                <Text style={styles.mrp}>{formatInr(mrpPaise)}</Text>
-              )}
+        <View style={styles.priceRow}>
+          <Text style={styles.priceBold}>
+            {unitPrice != null
+              ? `${options > 1 || defaultPkg?.price_is_from ? "Starts at " : ""}${formatInr(unitPrice)}`
+              : "Price on inspection"}
+          </Text>
+          {Boolean(showStrike && mrpPrice) && (
+            <Text style={styles.mrpText}>{formatInr(mrpPrice)}</Text>
+          )}
+          {Boolean(options === 1 && duration) && (
+            <View style={styles.durationWrap}>
+              <Text style={styles.bulletDot}>•</Text>
+              <Ionicons name="time-outline" size={12} color={colors.muted} />
+              <Text style={styles.durationText}>{duration} mins</Text>
             </View>
-            <Text style={styles.priceSub}>Upfront pricing</Text>
-          </View>
+          )}
+        </View>
 
-          {inCart ? (
+        {points.length > 0 && (
+          <View style={styles.pointsWrap}>
+            {points.map((pt: string, i: number) => (
+              <View key={i} style={styles.pointRow}>
+                <Text style={styles.bulletDot}>•</Text>
+                <Text style={styles.pointText} numberOfLines={1}>
+                  {pt}
+                </Text>
+              </View>
+            ))}
+          </View>
+        )}
+
+        <Pressable onPress={onDetails} style={styles.viewDetailsBtn}>
+          <Text style={styles.viewDetailsText}>View details</Text>
+        </Pressable>
+      </View>
+
+      {/* ========================================================
+          RIGHT COLUMN: Square Thumbnail (104x104) + Overlapping Add Button
+          ======================================================== */}
+      <View style={styles.rightCol}>
+        <View style={styles.thumbContainer}>
+          <Image
+            source={listImage}
+            style={styles.thumbImage}
+            resizeMode="contain"
+            fadeDuration={0}
+          />
+        </View>
+
+        <View style={styles.actionBtnWrap}>
+          {inCart && defaultPkg ? (
             <View style={styles.stepperContainer}>
               <Pressable
                 onPress={handleDecrement}
                 style={styles.stepperBtn}
+                hitSlop={6}
                 accessibilityRole="button"
                 accessibilityLabel="Decrease quantity"
               >
-                <Ionicons name="remove" size={15} color={colors.primary} />
+                <Ionicons name="remove" size={14} color={colors.primary} />
               </Pressable>
               <Text style={styles.stepperCount}>{inCart.quantity}</Text>
               <Pressable
                 onPress={handleIncrement}
                 style={styles.stepperBtn}
+                hitSlop={6}
                 accessibilityRole="button"
                 accessibilityLabel="Increase quantity"
               >
-                <Ionicons name="add" size={15} color={colors.primary} />
+                <Ionicons name="add" size={14} color={colors.primary} />
               </Pressable>
             </View>
           ) : (
             <Pressable
               onPress={handleAdd}
               style={styles.addBtn}
+              hitSlop={4}
               accessibilityRole="button"
-              accessibilityLabel={`Add ${service.name} to cart`}
+              accessibilityLabel={
+                options > 1 ? `Choose an option for ${service.name}` : `Add ${service.name}`
+              }
             >
-              <Text style={styles.addBtnText}>Add</Text>
+              <Text style={styles.addBtnText}>
+                {options > 1 && totalQtyInCart > 0 ? `${totalQtyInCart} added` : "Add"}
+              </Text>
             </Pressable>
+          )}
+
+          {Boolean(options > 1) && (
+            <Text style={styles.optionsLabel}>{options} options</Text>
           )}
         </View>
       </View>
@@ -175,7 +258,7 @@ export const MostBookedCard = React.memo(function MostBookedCard({
   const pricePaise = defaultPkg.price_paise ?? service.starting_price_paise ?? 49900;
   const mrpPaise = service.starting_mrp_paise ?? Math.round(pricePaise * 1.3);
 
-  const bannerSource = getServiceImage(service);
+  const imageSource = getServiceListImage(service);
 
   return (
     <View style={styles.mostBookedItem}>
@@ -183,9 +266,9 @@ export const MostBookedCard = React.memo(function MostBookedCard({
       <View style={styles.mostBookedImgWrapper}>
         <Pressable onPress={() => onOpen(service)} style={styles.mostBookedImgBtn}>
           <Image
-            source={bannerSource}
+            source={imageSource}
             style={styles.mostBookedImg}
-            resizeMode="cover"
+            resizeMode="contain"
             fadeDuration={0}
           />
         </Pressable>
@@ -236,117 +319,145 @@ export const MostBookedCard = React.memo(function MostBookedCard({
 });
 
 const styles = StyleSheet.create({
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: radii.xl,
-    borderWidth: 1,
-    borderColor: "#EAE3DC",
-    overflow: "hidden",
-    marginBottom: spacing.md,
-  },
-  cardPressed: {
-    transform: [{ scale: 0.99 }],
-    borderColor: colors.primary,
-  },
-  imageContainer: {
-    height: 135,
-    backgroundColor: colors.canvasWarm,
-    position: "relative",
-    overflow: "hidden",
-  },
-  bannerImage: {
-    width: "100%",
-    height: "100%",
-  },
-  ratingBadge: {
-    position: "absolute",
-    bottom: 8,
-    left: 8,
+  // Web-exact horizontal ServiceRow
+  serviceRow: {
     flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.95)",
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 3,
-    borderRadius: radii.sm,
-    gap: 3,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: 18,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F0EBE7",
+    gap: 14,
+    alignItems: "flex-start",
   },
-  ratingText: {
-    fontSize: 11,
-    fontWeight: "800",
-    color: colors.ink,
+  serviceRowPressed: {
+    backgroundColor: "#FAF7F5",
   },
-  ratingCount: {
+  leftCol: {
+    flex: 1,
+    minWidth: 0,
+  },
+  mostBookedPill: {
     fontSize: 10,
-    color: colors.muted,
+    fontWeight: "800",
+    color: "#1F6B44",
+    letterSpacing: 0.6,
+    textTransform: "uppercase",
+    marginBottom: 3,
   },
-  body: {
-    padding: spacing.md,
-  },
-  title: {
+  serviceName: {
     fontSize: 15,
     fontWeight: "700",
     color: colors.ink,
     lineHeight: 20,
   },
-  summary: {
-    fontSize: 12,
-    color: colors.muted,
-    lineHeight: 16,
-    marginTop: 4,
-  },
-  durationRow: {
+  ratingRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    marginTop: 6,
+    marginTop: 4,
   },
-  durationText: {
-    fontSize: 11,
-    color: colors.muted,
+  ratingText: {
+    fontSize: 12,
+    color: "#57534E",
     fontWeight: "500",
-  },
-  footer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginTop: spacing.md,
-    paddingTop: spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: colors.borderLight,
+    textDecorationLine: "underline",
   },
   priceRow: {
     flexDirection: "row",
-    alignItems: "baseline",
+    flexWrap: "wrap",
+    alignItems: "center",
     gap: 6,
+    marginTop: 6,
   },
-  price: {
-    fontSize: 16,
+  priceBold: {
+    fontSize: 14,
     fontWeight: "800",
-    color: colors.primary,
+    color: colors.ink,
   },
-  mrp: {
+  mrpText: {
     fontSize: 12,
     color: colors.subtle,
     textDecorationLine: "line-through",
   },
-  priceSub: {
-    fontSize: 10,
-    color: colors.muted,
+  durationWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+  },
+  bulletDot: {
+    fontSize: 12,
+    color: "#78716C",
+  },
+  durationText: {
+    fontSize: 12,
+    color: "#57534E",
+  },
+  pointsWrap: {
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: "#EAE3DC",
+    gap: 4,
+  },
+  pointRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  pointText: {
+    fontSize: 12,
+    color: "#57534E",
+    flex: 1,
+  },
+  viewDetailsBtn: {
+    marginTop: 8,
+    alignSelf: "flex-start",
+  },
+  viewDetailsText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: colors.primary,
+  },
+
+  // Right column: 104x104 square thumbnail & overlapping Add button
+  rightCol: {
+    width: 104,
+    alignItems: "center",
+    flexShrink: 0,
+  },
+  thumbContainer: {
+    width: 104,
+    height: 104,
+    borderRadius: 12,
+    backgroundColor: "#F3EFEC",
+    overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  thumbImage: {
+    width: "88%",
+    height: "88%",
+  },
+  actionBtnWrap: {
+    marginTop: -16,
+    zIndex: 10,
+    alignItems: "center",
   },
   addBtn: {
+    width: 84,
+    height: 34,
+    borderRadius: 8,
     backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: "#E2D9D0",
-    paddingHorizontal: spacing.lg,
-    paddingVertical: 7,
-    borderRadius: radii.md,
-    shadowColor: colors.black,
+    borderWidth: 1.5,
+    borderColor: "#D6CBC4",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: colors.ink,
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
+    shadowOpacity: 0.1,
     shadowRadius: 2,
-    elevation: 1,
+    elevation: 2,
   },
   addBtnText: {
     color: colors.primary,
@@ -354,28 +465,40 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   stepperContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: colors.white,
-    borderRadius: radii.md,
+    width: 86,
+    height: 34,
+    borderRadius: 8,
+    backgroundColor: "#F6E7EB",
     borderWidth: 1,
     borderColor: colors.primary,
-    shadowColor: colors.black,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 6,
+    shadowColor: colors.ink,
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.1,
     shadowRadius: 2,
-    elevation: 1,
+    elevation: 2,
   },
   stepperBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    width: 24,
+    height: 28,
+    alignItems: "center",
+    justifyContent: "center",
   },
   stepperCount: {
     fontSize: 13,
     fontWeight: "800",
     color: colors.primary,
-    paddingHorizontal: 4,
   },
+  optionsLabel: {
+    fontSize: 11,
+    color: "#78716C",
+    marginTop: 4,
+    fontWeight: "500",
+  },
+
   // Most Booked Square Styles
   mostBookedItem: {
     width: 156,
@@ -384,18 +507,22 @@ const styles = StyleSheet.create({
     position: "relative",
     aspectRatio: 1,
     borderRadius: radii.xl,
-    backgroundColor: colors.canvasWarm,
+    backgroundColor: "#F3EFEC",
     marginBottom: 14,
+    alignItems: "center",
+    justifyContent: "center",
   },
   mostBookedImgBtn: {
     width: "100%",
     height: "100%",
     borderRadius: radii.xl,
     overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "center",
   },
   mostBookedImg: {
-    width: "100%",
-    height: "100%",
+    width: "88%",
+    height: "88%",
   },
   floatingAddWrapper: {
     position: "absolute",

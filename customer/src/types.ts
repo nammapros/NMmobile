@@ -25,6 +25,7 @@ export interface Package {
   mrp_paise?: number;
   discount_percent?: number;
   price_is_from?: boolean;
+  is_most_booked?: boolean;
 }
 
 export interface ServiceFaq {

@@ -14,7 +14,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { api } from "../api";
-import { getServiceImage } from "../assets";
+import { getServiceImage, getServicePopupImage } from "../assets";
 import { formatInr } from "../components/ServiceCard";
 import { useApp } from "../state/AppContext";
 import { colors, isAndroid, radii, spacing, statusBarHeight } from "../theme";
@@ -187,34 +187,38 @@ export function ServiceDetailModal() {
       visible={Boolean(detailService)}
       animationType="slide"
       transparent={false}
-      statusBarTranslucent={true}
+      statusBarTranslucent={false}
       onRequestClose={() => setDetailService(null)}
     >
-      <SafeAreaView style={styles.safeArea} edges={["left", "right", "bottom"]}>
+      <SafeAreaView style={styles.safeArea} edges={["top", "left", "right", "bottom"]}>
         <StatusBar barStyle="dark-content" />
 
         <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
-          {/* Top Hero Photo Container with floating Back Button safely inset */}
+          {/* Top Hero Photo Container with floating Back & Close Buttons */}
           <View style={styles.heroImageContainer}>
             <Image
-              source={getServiceImage(currentService)}
+              source={getServicePopupImage(currentService)}
               style={styles.heroImage}
-              resizeMode="cover"
+              resizeMode="contain"
               fadeDuration={0}
             />
-            {/* Dark gradient vignette overlay at top for back button contrast */}
-            <View style={styles.heroOverlay} />
 
             <Pressable
               onPress={() => setDetailService(null)}
-              style={[
-                styles.floatingBackBtn,
-                { top: (isAndroid ? statusBarHeight : 16) + 8 },
-              ]}
+              style={styles.floatingBackBtn}
               accessibilityRole="button"
               accessibilityLabel="Back"
             >
-              <Ionicons name="arrow-back" size={22} color={colors.ink} />
+              <Ionicons name="arrow-back" size={20} color={colors.ink} />
+            </Pressable>
+
+            <Pressable
+              onPress={() => setDetailService(null)}
+              style={styles.floatingCloseBtn}
+              accessibilityRole="button"
+              accessibilityLabel="Close"
+            >
+              <Ionicons name="close" size={20} color={colors.ink} />
             </Pressable>
 
             {loadingLive && (
@@ -480,36 +484,49 @@ const styles = StyleSheet.create({
   },
   heroImageContainer: {
     width: "100%",
-    height: 280,
-    backgroundColor: colors.canvasWarm,
+    aspectRatio: 16 / 8,
+    backgroundColor: "#EFE9E2",
     position: "relative",
+    overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "center",
   },
   heroImage: {
-    width: "100%",
-    height: "100%",
-  },
-  heroOverlay: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 90,
-    backgroundColor: "rgba(0,0,0,0.15)",
+    width: "92%",
+    height: "92%",
   },
   floatingBackBtn: {
     position: "absolute",
-    left: spacing.lg,
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: colors.surface,
+    top: 12,
+    left: spacing.md,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "rgba(255, 255, 255, 0.95)",
     alignItems: "center",
     justifyContent: "center",
     shadowColor: colors.ink,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    elevation: 6,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
+    elevation: 3,
+    zIndex: 10,
+  },
+  floatingCloseBtn: {
+    position: "absolute",
+    top: 12,
+    right: spacing.md,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "rgba(255, 255, 255, 0.95)",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: colors.ink,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
+    elevation: 3,
     zIndex: 10,
   },
   loadingBadge: {

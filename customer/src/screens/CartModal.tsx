@@ -14,7 +14,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { api } from "../api";
-import { getServiceImage } from "../assets";
+import { getServiceImage, getServiceListImage } from "../assets";
 import { formatInr } from "../components/ServiceCard";
 import { useApp } from "../state/AppContext";
 import { colors, isAndroid, radii, spacing, statusBarHeight } from "../theme";
@@ -323,9 +323,9 @@ export function CartModal() {
                       return (
                         <View key={item.id} style={styles.cartCard}>
                           <Image
-                            source={getServiceImage(item.service)}
+                            source={getServiceListImage(item.service)}
                             style={styles.cartItemThumb}
-                            resizeMode="cover"
+                            resizeMode="contain"
                           />
                           <View style={styles.cartItemDetails}>
                             <Text style={styles.cartItemTitle} numberOfLines={2}>
@@ -768,7 +768,7 @@ const styles = StyleSheet.create({
     width: 54,
     height: 54,
     borderRadius: radii.md,
-    backgroundColor: colors.canvasWarm,
+    backgroundColor: "#F3EFEC",
   },
   cartItemDetails: {
     flex: 1,

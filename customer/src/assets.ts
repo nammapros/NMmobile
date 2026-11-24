@@ -111,44 +111,57 @@ export const CategoryCardAssets: Record<string, ImageSourcePropType> = {
 
 const imageSourceCache = new Map<string, ImageSourcePropType>();
 
-export function getServiceImage(service?: {
-  id?: string;
-  slug?: string;
-  category?: string;
-  name?: string;
-  main_image?: string | null;
-  cover_image?: string | null;
-  list_image?: string | null;
-  landing_thumbnail?: string | null;
-  banner_image?: string | null;
-  image_url?: string | null;
-  popup_cover_image?: string | null;
-  popup_content_image?: string | null;
-}): ImageSourcePropType {
+export function getServiceImage(
+  service?: {
+    id?: string;
+    slug?: string;
+    category?: string;
+    name?: string;
+    main_image?: string | null;
+    cover_image?: string | null;
+    list_image?: string | null;
+    landing_thumbnail?: string | null;
+    banner_image?: string | null;
+    image_url?: string | null;
+    popup_cover_image?: string | null;
+    popup_content_image?: string | null;
+  },
+  variant: "list" | "popup" = "list"
+): ImageSourcePropType {
   if (!service) return ServiceBannerAssets.ac;
 
-  const cacheKey =
+  const rawKey =
     service.id ||
     service.slug ||
+    service.popup_cover_image ||
     service.list_image ||
     service.main_image ||
     service.name ||
     "default";
+  const cacheKey = `${variant}:${rawKey}`;
 
   const cached = imageSourceCache.get(cacheKey);
   if (cached) return cached;
 
   const resolve = (): ImageSourcePropType => {
-    // 1. Live image URL from backend (Cloudinary / HTTPS / Direct)
+    // 1. Live image URL from backend according to variant
     const candidateUrl =
-      service.list_image ||
-      service.main_image ||
-      service.cover_image ||
-      service.landing_thumbnail ||
-      service.banner_image ||
-      service.popup_cover_image ||
-      service.popup_content_image ||
-      service.image_url;
+      variant === "popup"
+        ? service.popup_cover_image ||
+          service.cover_image ||
+          service.main_image ||
+          service.banner_image ||
+          service.landing_thumbnail ||
+          service.list_image ||
+          service.popup_content_image ||
+          service.image_url
+        : service.list_image ||
+          service.cover_image ||
+          service.main_image ||
+          service.landing_thumbnail ||
+          service.banner_image ||
+          service.popup_cover_image ||
+          service.image_url;
 
     if (candidateUrl && typeof candidateUrl === "string" && candidateUrl.trim().length > 0) {
       const trimmed = candidateUrl.trim();
@@ -217,4 +230,12 @@ export function getServiceImage(service?: {
   const result = resolve();
   imageSourceCache.set(cacheKey, result);
   return result;
+}
+
+export function getServiceListImage(service?: any): ImageSourcePropType {
+  return getServiceImage(service, "list");
+}
+
+export function getServicePopupImage(service?: any): ImageSourcePropType {
+  return getServiceImage(service, "popup");
 }
