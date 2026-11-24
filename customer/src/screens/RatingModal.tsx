@@ -5,12 +5,12 @@ import {
   Image,
   Modal,
   Pressable,
-  SafeAreaView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { ServiceBannerAssets } from "../assets";
 import { useApp } from "../state/AppContext";
 import { colors, radii, spacing } from "../theme";

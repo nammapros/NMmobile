@@ -6,13 +6,13 @@ import {
   Image,
   Modal,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { api } from "../api";
 import { getServiceImage } from "../assets";
 import { formatInr } from "../components/ServiceCard";

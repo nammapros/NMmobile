@@ -6,13 +6,13 @@ import {
   Linking,
   Modal,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { api, CLOUD_RUN_URL_1, CLOUD_RUN_URL_2 } from "../api";
 import { useApp } from "../state/AppContext";
 import { colors, radii, spacing } from "../theme";

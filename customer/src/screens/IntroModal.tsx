@@ -4,11 +4,11 @@ import {
   Image,
   Modal,
   Pressable,
-  SafeAreaView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { BrandAssets, HomeIconAssets } from "../assets";
 import { useApp } from "../state/AppContext";
 import { colors, radii, spacing, typography } from "../theme";
