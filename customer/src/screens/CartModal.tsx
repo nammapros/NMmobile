@@ -430,6 +430,7 @@ export function CartModal() {
                             source={getServiceListImage(item.service)}
                             style={styles.cartItemThumb}
                             resizeMode="cover"
+                            fadeDuration={0}
                           />
                           <View style={styles.cartItemDetails}>
                             <Text style={styles.cartItemTitle} numberOfLines={2}>

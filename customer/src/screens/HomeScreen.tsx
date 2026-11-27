@@ -14,6 +14,127 @@ import { BrandAssets, CategoryCardAssets, HomeIconAssets, ServiceBannerAssets, S
 import { useApp } from "../state/AppContext";
 import { colors, radii, spacing } from "../theme";
 
+// ============================================================================
+// STATIC DATA: Module-level singletons for 0ms instant render & zero re-allocations
+// ============================================================================
+const HOME_CATEGORIES = [
+  {
+    key: "cleaning",
+    title: "Cleaning &\nPest Control",
+    timeBadge: "55 mins",
+    icon: HomeIconAssets["deep-cleaning"],
+    slug: "cleaning",
+  },
+  {
+    key: "ac",
+    title: "AC & Appliance\nRepair",
+    timeBadge: "44 mins",
+    icon: HomeIconAssets.ac,
+    slug: "ac",
+  },
+  {
+    key: "handyman",
+    title: "Electrician,\nPlumber & Carpenter",
+    timeBadge: "29 mins",
+    icon: HomeIconAssets.handyman,
+    slug: "electrician",
+  },
+  {
+    key: "tank",
+    title: "Water Tank\nCleaning",
+    timeBadge: "30 mins",
+    icon: HomeIconAssets["water-tank-cleaning"],
+    slug: "water-tank-cleaning",
+  },
+  {
+    key: "appliances",
+    title: "Washing Machine\n& Refrigerator",
+    timeBadge: "45 mins",
+    icon: HomeIconAssets["appliance-services"],
+    slug: "appliances",
+  },
+  {
+    key: "sofa",
+    title: "Sofa Repair\n& Cleaning",
+    timeBadge: "50 mins",
+    icon: HomeIconAssets["sofa-repair"],
+    slug: "sofa",
+  },
+  {
+    key: "mosquito",
+    title: "Mosquito Net\nProtection",
+    timeBadge: "60 mins",
+    icon: HomeIconAssets["mosquito-net"],
+    slug: "mosquito-net",
+  },
+  {
+    key: "painting",
+    title: "Home Painting\n& Upgrade",
+    timeBadge: "24 hrs",
+    icon: HomeIconAssets.carpenter,
+    slug: "carpenter",
+  },
+];
+
+const NEW_AND_NOTEWORTHY = [
+  {
+    id: "full-home",
+    title: "Full Home / By Room Cleaning",
+    timeBadge: "45 mins",
+    image: CategoryCardAssets.cleaning,
+    slug: "cleaning",
+  },
+  {
+    id: "tank-sanitize",
+    title: "Water Tank Deep Sanitize",
+    timeBadge: "30 mins",
+    image: ServiceBannerAssets["water-tank-cleaning"],
+    slug: "water-tank-cleaning",
+  },
+  {
+    id: "living-bed",
+    title: "Living & Bedroom Cleaning",
+    timeBadge: "50 mins",
+    image: CategoryCardAssets.appliances,
+    slug: "cleaning",
+  },
+  {
+    id: "sofa-deep",
+    title: "Sofa Deep Cleaning & Repair",
+    timeBadge: "49 mins",
+    image: ServiceBannerAssets.sofa,
+    slug: "sofa",
+  },
+  {
+    id: "stove-repair",
+    title: "Stove Service & Repair",
+    timeBadge: "44 mins",
+    image: HomeIconAssets["kitchen-cleaning"],
+    slug: "appliances",
+  },
+  {
+    id: "wm-tuneup",
+    title: "Washing Machine Repair",
+    timeBadge: "45 mins",
+    image: HomeIconAssets["washing-machine"],
+    slug: "appliances",
+  },
+  {
+    id: "fridge-refill",
+    title: "Refrigerator Gas Refill",
+    timeBadge: "40 mins",
+    image: HomeIconAssets.refrigerator,
+    slug: "appliances",
+  },
+  {
+    id: "electrician-quick",
+    title: "Electrician On-Demand",
+    timeBadge: "29 mins",
+    image: HomeIconAssets.electrician,
+    slug: "electrician",
+  },
+];
+
 export function HomeScreen() {
   const {
     catalog,
@@ -55,126 +176,6 @@ export function HomeScreen() {
       setIsAuthOpen(true);
     }
   };
-
-  // 8 Core Categories in 4-Column Grid matching Image 1
-  const HOME_CATEGORIES = [
-    {
-      key: "cleaning",
-      title: "Cleaning &\nPest Control",
-      timeBadge: "55 mins",
-      icon: HomeIconAssets["deep-cleaning"],
-      slug: "cleaning",
-    },
-    {
-      key: "ac",
-      title: "AC & Appliance\nRepair",
-      timeBadge: "44 mins",
-      icon: HomeIconAssets.ac,
-      slug: "ac",
-    },
-    {
-      key: "handyman",
-      title: "Electrician,\nPlumber & Carpenter",
-      timeBadge: "29 mins",
-      icon: HomeIconAssets.handyman,
-      slug: "electrician",
-    },
-    {
-      key: "tank",
-      title: "Water Tank\nCleaning",
-      timeBadge: "30 mins",
-      icon: HomeIconAssets["water-tank-cleaning"],
-      slug: "water-tank-cleaning",
-    },
-    {
-      key: "appliances",
-      title: "Washing Machine\n& Refrigerator",
-      timeBadge: "45 mins",
-      icon: HomeIconAssets["appliance-services"],
-      slug: "appliances",
-    },
-    {
-      key: "sofa",
-      title: "Sofa Repair\n& Cleaning",
-      timeBadge: "50 mins",
-      icon: HomeIconAssets["sofa-repair"],
-      slug: "sofa",
-    },
-    {
-      key: "mosquito",
-      title: "Mosquito Net\nProtection",
-      timeBadge: "60 mins",
-      icon: HomeIconAssets["mosquito-net"],
-      slug: "mosquito-net",
-    },
-    {
-      key: "painting",
-      title: "Home Painting\n& Upgrade",
-      timeBadge: "24 hrs",
-      icon: HomeIconAssets.carpenter,
-      slug: "carpenter",
-    },
-  ];
-
-  // New and Noteworthy grid matching Image 2
-  const NEW_AND_NOTEWORTHY = [
-    {
-      id: "full-home",
-      title: "Full Home / By Room Cleaning",
-      timeBadge: "45 mins",
-      image: CategoryCardAssets.cleaning,
-      slug: "cleaning",
-    },
-    {
-      id: "tank-sanitize",
-      title: "Water Tank Deep Sanitize",
-      timeBadge: "30 mins",
-      image: ServiceBannerAssets["water-tank-cleaning"],
-      slug: "water-tank-cleaning",
-    },
-    {
-      id: "living-bed",
-      title: "Living & Bedroom Cleaning",
-      timeBadge: "50 mins",
-      image: CategoryCardAssets.appliances,
-      slug: "cleaning",
-    },
-    {
-      id: "sofa-deep",
-      title: "Sofa Deep Cleaning & Repair",
-      timeBadge: "49 mins",
-      image: ServiceBannerAssets.sofa,
-      slug: "sofa",
-    },
-    {
-      id: "stove-repair",
-      title: "Stove Service & Repair",
-      timeBadge: "44 mins",
-      image: HomeIconAssets["kitchen-cleaning"],
-      slug: "appliances",
-    },
-    {
-      id: "wm-tuneup",
-      title: "Washing Machine Repair",
-      timeBadge: "45 mins",
-      image: HomeIconAssets["washing-machine"],
-      slug: "appliances",
-    },
-    {
-      id: "fridge-refill",
-      title: "Refrigerator Gas Refill",
-      timeBadge: "40 mins",
-      image: HomeIconAssets.refrigerator,
-      slug: "appliances",
-    },
-    {
-      id: "electrician-quick",
-      title: "Electrician On-Demand",
-      timeBadge: "29 mins",
-      image: HomeIconAssets.electrician,
-      slug: "electrician",
-    },
-  ];
 
   return (
     <ScrollView
@@ -465,6 +466,7 @@ export function HomeScreen() {
               source={BrandAssets.heroTechnicians}
               style={styles.trustTechnicianImg}
               resizeMode="contain"
+              fadeDuration={0}
             />
           </View>
 

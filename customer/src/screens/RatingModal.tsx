@@ -13,7 +13,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { ServiceBannerAssets } from "../assets";
+import { getServiceImage } from "../assets";
 import { SwipeBackContainer } from "../components/SwipeBackContainer";
 import { useApp } from "../state/AppContext";
 import { colors, isAndroid, radii, spacing, statusBarHeight } from "../theme";
@@ -48,14 +48,7 @@ export function RatingModal() {
   };
 
   const getBookingThumb = (name?: string) => {
-    const n = (name || "").toLowerCase();
-    if (n.includes("water") || n.includes("tank")) {
-      return ServiceBannerAssets["water-tank-cleaning"];
-    }
-    if (n.includes("ac")) {
-      return ServiceBannerAssets.ac;
-    }
-    return ServiceBannerAssets["washing-machine"];
+    return getServiceImage({ name });
   };
 
   return (
@@ -89,6 +82,7 @@ export function RatingModal() {
               source={getBookingThumb(ratingBooking.service_name || ratingBooking.service)}
               style={styles.serviceThumb}
               resizeMode="cover"
+              fadeDuration={0}
             />
             <View style={styles.serviceCardTextWrap}>
               <Text style={styles.serviceName}>

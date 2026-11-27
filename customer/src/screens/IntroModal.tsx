@@ -71,6 +71,7 @@ export function IntroModal() {
                 source={BrandAssets.technicianCutout}
                 style={styles.technicianImg}
                 resizeMode="contain"
+                fadeDuration={0}
               />
             </View>
 

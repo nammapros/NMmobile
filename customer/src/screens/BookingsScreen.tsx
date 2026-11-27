@@ -18,7 +18,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { api } from "../api";
-import { ServiceBannerAssets } from "../assets";
+import { getServiceImage, ServiceBannerAssets } from "../assets";
 import { formatInr } from "../components/ServiceCard";
 import { SwipeBackContainer } from "../components/SwipeBackContainer";
 import { useApp } from "../state/AppContext";
@@ -191,14 +191,7 @@ export function BookingsScreen() {
   };
 
   const getBookingThumb = (name?: string) => {
-    const n = (name || "").toLowerCase();
-    if (n.includes("water") || n.includes("tank")) {
-      return ServiceBannerAssets["water-tank-cleaning"];
-    }
-    if (n.includes("ac")) {
-      return ServiceBannerAssets.ac;
-    }
-    return ServiceBannerAssets["washing-machine"];
+    return getServiceImage({ name });
   };
 
   return (
@@ -290,6 +283,7 @@ export function BookingsScreen() {
                 source={getBookingThumb(booking.service_name || booking.service)}
                 style={styles.bookingThumb}
                 resizeMode="cover"
+                fadeDuration={0}
               />
               <View style={styles.bookingCardDetails}>
                 <View style={styles.bookingTopRow}>
@@ -462,6 +456,7 @@ export function BookingsScreen() {
                     )}
                     style={styles.detailItemThumb}
                     resizeMode="cover"
+                    fadeDuration={0}
                   />
                   <View style={styles.detailItemTextWrap}>
                     <Text style={styles.detailItemName}>
