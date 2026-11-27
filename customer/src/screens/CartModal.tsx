@@ -429,7 +429,7 @@ export function CartModal() {
                           <Image
                             source={getServiceListImage(item.service)}
                             style={styles.cartItemThumb}
-                            resizeMode="contain"
+                            resizeMode="cover"
                           />
                           <View style={styles.cartItemDetails}>
                             <Text style={styles.cartItemTitle} numberOfLines={2}>
@@ -1377,10 +1377,11 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   cartItemThumb: {
-    width: 52,
-    height: 52,
+    width: 56,
+    height: 56,
     borderRadius: radii.md,
     backgroundColor: "#F5F0EB",
+    overflow: "hidden",
   },
   cartItemDetails: {
     flex: 1,

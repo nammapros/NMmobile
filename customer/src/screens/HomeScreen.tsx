@@ -763,6 +763,7 @@ const styles = StyleSheet.create({
   categoryIconImg: {
     width: 56,
     height: 56,
+    aspectRatio: 1,
   },
   timeBadgePill: {
     backgroundColor: "#ECFDF5",
@@ -814,6 +815,7 @@ const styles = StyleSheet.create({
   smartProductImg: {
     width: 60,
     height: 60,
+    aspectRatio: 1,
     marginBottom: 6,
   },
   smartProductTitle: {

@@ -804,8 +804,9 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent",
   },
   categoryIconImg: {
-    width: 60,
-    height: 60,
+    width: 56,
+    height: 56,
+    aspectRatio: 1,
   },
   categoryIconTitle: {
     fontSize: 12,
@@ -824,8 +825,9 @@ const styles = StyleSheet.create({
   },
   categoryHeroBanner: {
     width: "100%",
-    height: 140,
+    height: 150,
     position: "relative",
+    overflow: "hidden",
     backgroundColor: colors.primaryDark,
   },
   categoryHeroImg: {

@@ -226,7 +226,7 @@ export function ServiceDetailModal() {
               <Image
                 source={getServicePopupImage(currentService)}
                 style={styles.heroImage}
-                resizeMode="contain"
+                resizeMode="cover"
                 fadeDuration={0}
               />
 
@@ -529,16 +529,14 @@ const styles = StyleSheet.create({
   },
   heroImageContainer: {
     width: "100%",
-    aspectRatio: 16 / 8,
-    backgroundColor: "#EFE9E2",
+    aspectRatio: 16 / 9,
+    backgroundColor: "#F3EFEC",
     position: "relative",
     overflow: "hidden",
-    alignItems: "center",
-    justifyContent: "center",
   },
   heroImage: {
-    width: "92%",
-    height: "92%",
+    width: "100%",
+    height: "100%",
   },
   floatingCloseBtn: {
     position: "absolute",

@@ -176,7 +176,7 @@ export const ServiceCard = React.memo(function ServiceCard({ service }: { servic
           <Image
             source={listImage}
             style={styles.thumbImage}
-            resizeMode="contain"
+            resizeMode="cover"
             fadeDuration={0}
           />
         </View>
@@ -268,7 +268,7 @@ export const MostBookedCard = React.memo(function MostBookedCard({
           <Image
             source={imageSource}
             style={styles.mostBookedImg}
-            resizeMode="contain"
+            resizeMode="cover"
             fadeDuration={0}
           />
         </Pressable>
@@ -440,12 +440,10 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: "#F3EFEC",
     overflow: "hidden",
-    alignItems: "center",
-    justifyContent: "center",
   },
   thumbImage: {
-    width: "88%",
-    height: "88%",
+    width: "100%",
+    height: "100%",
   },
   actionBtnWrap: {
     marginTop: -16,
@@ -529,8 +527,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   mostBookedImg: {
-    width: "88%",
-    height: "88%",
+    width: "100%",
+    height: "100%",
   },
   floatingAddWrapper: {
     position: "absolute",
