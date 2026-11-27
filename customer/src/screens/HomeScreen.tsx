@@ -191,9 +191,9 @@ export function HomeScreen() {
       showsVerticalScrollIndicator={false}
     >
       {/* ========================================================
-          1. PURPLE HERO HEADER (EXACTLY MATCHING IMAGE 1)
+          1. NAMMAPROS BURGUNDY HERO HEADER (MATCHING REFERENCE)
           ======================================================== */}
-      <View style={styles.purpleHeaderContainer}>
+      <View style={styles.brandHeaderContainer}>
         {/* Top Line: "In 29 mins" / Location Dropdown + Wallet & Profile */}
         <View style={styles.headerTopRow}>
           <View style={styles.headerLocationWrap}>
@@ -219,7 +219,7 @@ export function HomeScreen() {
               accessibilityRole="button"
               accessibilityLabel="Wallet Balance"
             >
-              <Ionicons name="wallet" size={16} color="#7C3AED" />
+              <Ionicons name="wallet" size={16} color={colors.primary} />
               <Text style={styles.walletPillText}>₹0</Text>
             </Pressable>
 
@@ -229,7 +229,7 @@ export function HomeScreen() {
               accessibilityRole="button"
               accessibilityLabel="User Profile"
             >
-              <Ionicons name="person" size={18} color="#1C1917" />
+              <Ionicons name="person" size={18} color={colors.primary} />
             </Pressable>
           </View>
         </View>
@@ -459,7 +459,40 @@ export function HomeScreen() {
       </View>
 
       {/* ========================================================
-          6. THE NAMMAPROS PROMISE FOOTER
+          6. TRUST BANNER: "You call. We fix it right." (MATCHING IMAGE 3)
+          ======================================================== */}
+      <View style={styles.trustBannerWrap}>
+        <View style={styles.trustBannerCard}>
+          <Text style={styles.trustBannerHead1}>You call.</Text>
+          <Text style={styles.trustBannerHead2}>We fix it right.</Text>
+
+          <View style={styles.trustTechnicianImgWrap}>
+            <Image
+              source={BrandAssets.heroTechnicians}
+              style={styles.trustTechnicianImg}
+              resizeMode="contain"
+            />
+          </View>
+
+          {/* 3 Frosted Glass Pills Row matching Image 3 */}
+          <View style={styles.trustPillsContainer}>
+            <View style={styles.trustGlassPill}>
+              <Text style={styles.trustGlassPillText}>Trained on{"\n"}real repairs</Text>
+            </View>
+            <View style={styles.trustGlassPillDivider} />
+            <View style={styles.trustGlassPill}>
+              <Text style={styles.trustGlassPillText}>Service with{"\n"}warranty</Text>
+            </View>
+            <View style={styles.trustGlassPillDivider} />
+            <View style={styles.trustGlassPill}>
+              <Text style={styles.trustGlassPillText}>ID & police{"\n"}verified</Text>
+            </View>
+          </View>
+        </View>
+      </View>
+
+      {/* ========================================================
+          7. THE NAMMAPROS PROMISE FOOTER
           ======================================================== */}
       <View style={styles.promiseCard}>
         <View style={styles.promiseHeader}>
@@ -483,9 +516,9 @@ const styles = StyleSheet.create({
     paddingBottom: 90,
   },
 
-  // 1. Purple Header Container matching Image 1
-  purpleHeaderContainer: {
-    backgroundColor: "#7C3AED",
+  // 1. Burgundy Brand Header Container
+  brandHeaderContainer: {
+    backgroundColor: colors.primary,
     paddingHorizontal: spacing.lg,
     paddingTop: 8,
     paddingBottom: 16,
@@ -931,7 +964,77 @@ const styles = StyleSheet.create({
     color: "#059669",
   },
 
-  // 6. Promise Footer
+  // 6. Trust Banner "You call. We fix it right."
+  trustBannerWrap: {
+    marginHorizontal: spacing.md,
+    marginTop: spacing.xl,
+  },
+  trustBannerCard: {
+    backgroundColor: "#1C3B47",
+    borderRadius: radii.xl,
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.lg,
+    paddingHorizontal: spacing.md,
+    alignItems: "center",
+    overflow: "hidden",
+  },
+  trustBannerHead1: {
+    fontSize: 26,
+    fontWeight: "900",
+    color: colors.white,
+    textAlign: "center",
+    lineHeight: 30,
+  },
+  trustBannerHead2: {
+    fontSize: 26,
+    fontWeight: "900",
+    color: colors.white,
+    textAlign: "center",
+    lineHeight: 30,
+    marginBottom: spacing.sm,
+  },
+  trustTechnicianImgWrap: {
+    width: "100%",
+    height: 190,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  trustTechnicianImg: {
+    width: "92%",
+    height: "100%",
+  },
+  trustPillsContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    width: "100%",
+    backgroundColor: "rgba(255, 255, 255, 0.16)",
+    borderRadius: radii.lg,
+    paddingVertical: 10,
+    paddingHorizontal: 6,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.28)",
+    marginTop: 8,
+  },
+  trustGlassPill: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  trustGlassPillDivider: {
+    width: 1,
+    height: 24,
+    backgroundColor: "rgba(255, 255, 255, 0.3)",
+  },
+  trustGlassPillText: {
+    fontSize: 10.5,
+    fontWeight: "700",
+    color: colors.white,
+    textAlign: "center",
+    lineHeight: 14,
+  },
+
+  // 7. Promise Footer
   promiseCard: {
     marginHorizontal: spacing.lg,
     marginTop: spacing.xl,

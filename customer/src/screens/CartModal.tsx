@@ -17,34 +17,40 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { api } from "../api";
-import { getServiceImage, getServiceListImage } from "../assets";
+import { BrandAssets, getServiceListImage } from "../assets";
 import { formatInr } from "../components/ServiceCard";
 import { SwipeBackContainer } from "../components/SwipeBackContainer";
 import { useApp } from "../state/AppContext";
-import { colors, isAndroid, radii, spacing, statusBarHeight } from "../theme";
+import { colors, radii, spacing, statusBarHeight } from "../theme";
 import type { Address, Booking } from "../types";
 
-type CheckoutStep =
-  | "cart"
-  | "address"
-  | "datetime"
-  | "payment"
-  | "confirmed";
+export type CheckoutStep = "cart" | "slot" | "payment" | "confirmed";
 
-const TIME_SLOTS = [
-  "9:00 AM - 11:00 AM",
-  "11:00 AM - 1:00 PM",
-  "2:00 PM - 4:00 PM",
-  "4:00 PM - 6:00 PM",
-  "6:00 PM - 8:00 PM",
+const SCHEDULE_DAYS = [
+  { label: "Today", date: "27", full: "Fri, Nov 27" },
+  { label: "Sat", date: "28", full: "Sat, Nov 28" },
+  { label: "Sun", date: "29", full: "Sun, Nov 29" },
 ];
 
-const UPI_APPS = [
-  { id: "upi_auto", name: "UPI (Google Pay, PhonePe, Paytm, etc.)", icon: "flash" },
-  { id: "gpay", name: "Google Pay", icon: "logo-google" },
-  { id: "phonepe", name: "PhonePe", icon: "wallet" },
-  { id: "paytm", name: "Paytm", icon: "card" },
+const SCHEDULE_SLOTS_3COL = [
+  "11:30 AM",
+  "11:45 AM",
+  "12:00 PM",
+  "12:15 PM",
+  "12:30 PM",
+  "12:45 PM",
+  "01:00 PM",
+  "01:15 PM",
+  "01:30 PM",
+  "01:45 PM",
+  "02:00 PM",
+  "02:15 PM",
+  "02:30 PM",
+  "02:45 PM",
+  "03:00 PM",
 ];
+
+const TIP_OPTIONS = [50, 75, 100];
 
 export function CartModal() {
   const {
@@ -68,130 +74,188 @@ export function CartModal() {
   } = useApp();
 
   const [currentStep, setCurrentStep] = useState<CheckoutStep>("cart");
-  const [selectedDateDay, setSelectedDateDay] = useState(18);
-  const [selectedSlotIndex, setSelectedSlotIndex] = useState(2); // "2:00 PM - 4:00 PM"
-  const [selectedUpiApp, setSelectedUpiApp] = useState("upi_auto");
+
+  // Contact Info State
+  const [contactName, setContactName] = useState(user?.name || "Deepan");
+  const [contactPhone, setContactPhone] = useState(user?.phone_e164 || "+91-7402113650");
+  const [isEditingContact, setIsEditingContact] = useState(false);
+
+  // Slot Selection State (matching Image 5)
+  const [isSlotSelected, setIsSlotSelected] = useState(false);
+  const [arrivalType, setArrivalType] = useState<"instant" | "scheduled">("scheduled");
+  const [selectedDayIdx, setSelectedDayIdx] = useState(0); // Today 27
+  const [selectedSlotStr, setSelectedSlotStr] = useState("11:45 AM");
+
+  // Tip Selection State (matching Image 4 & 6)
+  const [selectedTip, setSelectedTip] = useState<number | null>(75); // ₹75 POPULAR by default
+  const [customTipVal, setCustomTipVal] = useState("");
+  const [showCustomTipInput, setShowCustomTipInput] = useState(false);
+
+  // Address Modal & Submission State
+  const [showAddressPicker, setShowAddressPicker] = useState(false);
+  const [showAddAddressForm, setShowAddAddressForm] = useState(false);
+  const [newAddressText, setNewAddressText] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [confirmedBooking, setConfirmedBooking] = useState<Booking | null>(null);
 
-  // New address modal state
-  const [showAddAddress, setShowAddAddress] = useState(false);
-  const [newLabel, setNewLabel] = useState("Home");
-  const [newLine1, setNewLine1] = useState("");
-
   if (!isCartOpen) return null;
 
-  const totalPaise = cartTotalPaise;
   const activeAddress =
-    savedAddresses.find((a) => a.id === selectedAddressId) || savedAddresses[0];
+    savedAddresses.find((a) => a.id === selectedAddressId) || savedAddresses[0] || {
+      id: "default-addr",
+      label: "Home",
+      line_1: "10, 2nd Cross Rd, Kallumantapa, Horamavu",
+      city: selectedCity || "Bengaluru",
+      postal_code: selectedPincode || "560043",
+    };
 
-  const handleNextFromCart = () => {
-    if (cartItems.length === 0) return;
-    if (!user) {
-      setIsAuthOpen(true);
+  // Financial Calculations matching reference images
+  const itemTotalPaise = cartTotalPaise > 0 ? cartTotalPaise : 126000; // ₹1,260
+  const originalMrpPaise = Math.round(itemTotalPaise * 1.08); // e.g. ₹1,360
+  const taxesAndFeePaise = 13900; // ₹139 as in reference image
+  const tipPaise = (selectedTip || 0) * 100;
+  const totalAmountPaise = itemTotalPaise + taxesAndFeePaise + tipPaise;
+  const amountToPayPaise = totalAmountPaise;
+
+  const currentScheduledSummary =
+    arrivalType === "instant"
+      ? "In 44 mins • Instant Arrival"
+      : `${SCHEDULE_DAYS[selectedDayIdx].full} - ${selectedSlotStr}`;
+
+  const handleStepBack = () => {
+    if (currentStep === "cart" || currentStep === "confirmed") {
+      setIsCartOpen(false);
+      setCurrentStep("cart");
+    } else if (currentStep === "slot") {
+      setCurrentStep("cart");
+    } else if (currentStep === "payment") {
+      setCurrentStep("cart");
+    }
+  };
+
+  const handleSelectTipOption = (amount: number) => {
+    if (selectedTip === amount) {
+      setSelectedTip(0);
+    } else {
+      setSelectedTip(amount);
+      setShowCustomTipInput(false);
+    }
+  };
+
+  const handleApplyCustomTip = () => {
+    const val = parseInt(customTipVal, 10);
+    if (!isNaN(val) && val > 0) {
+      setSelectedTip(val);
+      setShowCustomTipInput(false);
+    } else {
+      Alert.alert("Invalid Tip", "Please enter a valid amount.");
+    }
+  };
+
+  const handleSaveContact = () => {
+    if (!contactName.trim() || !contactPhone.trim()) {
+      Alert.alert("Missing details", "Please enter valid contact name and phone number.");
       return;
     }
-    setCurrentStep("address");
+    setIsEditingContact(false);
   };
 
   const handleCreateNewAddress = () => {
-    if (!newLine1.trim()) {
-      Alert.alert("Missing Address", "Please enter the street address.");
+    if (!newAddressText.trim()) {
+      Alert.alert("Missing Address", "Please enter your street address.");
       return;
     }
     const newAddr: Address = {
       id: `addr-${Date.now()}`,
-      label: newLabel,
-      contact_name: user?.name || "Customer",
-      contact_phone: user?.phone_e164 || "+91 98765 43210",
+      label: "Home",
+      contact_name: contactName,
+      contact_phone: contactPhone,
       house_flat: "",
       street: "",
       locality: selectedCity,
       city: selectedCity,
-      state: "Tamil Nadu",
+      state: "Karnataka",
       postal_code: selectedPincode,
-      line_1: newLine1.trim(),
+      line_1: newAddressText.trim(),
       is_default: false,
     };
     addSavedAddress(newAddr);
-    setShowAddAddress(false);
-    setNewLine1("");
+    setSelectedAddressId(newAddr.id);
+    setShowAddAddressForm(false);
+    setShowAddressPicker(false);
+    setNewAddressText("");
   };
 
-  const handleProcessPayment = async () => {
+  const handleProceedFromSlot = () => {
+    setIsSlotSelected(true);
+    setCurrentStep("cart");
+  };
+
+  const handleProcessPayment = async (methodName = "Google Pay UPI") => {
     setIsSubmitting(true);
     try {
-      const scheduledDateStr = `2026-11-${String(selectedDateDay).padStart(2, "0")}`;
-      const slotStr = TIME_SLOTS[selectedSlotIndex];
-
-      // Trigger native UPI intent if installed on device
-      const totalRupees = Math.round(totalPaise / 100);
+      const scheduledDateStr = `2026-11-${SCHEDULE_DAYS[selectedDayIdx].date}`;
+      const totalRupees = Math.round(amountToPayPaise / 100);
       const orderRef = `NP${Math.floor(100000 + Math.random() * 900000)}`;
-      const upiBase = `upi://pay?pa=nammapros@icici&pn=NammaPros&am=${totalRupees}&cu=INR&tn=Booking-${orderRef}`;
 
-      let appUri = upiBase;
-      if (selectedUpiApp === "gpay") {
-        appUri = Platform.OS === "android" ? `tez://upi/pay?pa=nammapros@icici&pn=NammaPros&am=${totalRupees}&cu=INR&tn=Booking-${orderRef}` : upiBase;
-      } else if (selectedUpiApp === "phonepe") {
-        appUri = `phonepe://pay?pa=nammapros@icici&pn=NammaPros&am=${totalRupees}&cu=INR&tn=Booking-${orderRef}`;
-      } else if (selectedUpiApp === "paytm") {
-        appUri = `paytmmp://pay?pa=nammapros@icici&pn=NammaPros&am=${totalRupees}&cu=INR&tn=Booking-${orderRef}`;
-      }
-
-      try {
-        const canLaunch = await Linking.canOpenURL(appUri);
-        if (canLaunch) {
-          await Linking.openURL(appUri);
+      // Attempt native UPI intent if selected
+      if (methodName.toLowerCase().includes("upi")) {
+        const upiBase = `upi://pay?pa=nammapros@icici&pn=NammaPros&am=${totalRupees}&cu=INR&tn=Booking-${orderRef}`;
+        try {
+          const canLaunch = await Linking.canOpenURL(upiBase);
+          if (canLaunch) {
+            await Linking.openURL(upiBase);
+          }
+        } catch {
+          // Handled gracefully in simulator/web
         }
-      } catch {
-        // Fallback gracefully on web or simulator
       }
 
-      const res = await api.createBooking({
+      await api.createBooking({
         service_id: cartItems[0]?.service.id || "svc-1",
         package_id: cartItems[0]?.pkg.id || "pkg-1",
-        address_line_1: activeAddress?.line_1 || "Anna Nagar, Chennai",
-        postal_code: activeAddress?.postal_code || selectedPincode,
-        city: activeAddress?.city || selectedCity,
-        contact_phone: user?.phone_e164 || "+919876543210",
-        contact_name: user?.name || "Customer",
+        address_line_1: activeAddress.line_1 || "10, 2nd Cross Rd, Kallumantapa, Horamavu",
+        postal_code: activeAddress.postal_code || selectedPincode,
+        city: activeAddress.city || selectedCity,
+        contact_phone: contactPhone,
+        contact_name: contactName,
         scheduled_date: scheduledDateStr,
-        scheduled_slot: slotStr,
-        payment_method: "ONLINE",
+        scheduled_slot: selectedSlotStr,
+        payment_method: methodName === "Pay after service" ? "COD" : "ONLINE",
       });
 
       const newBooking: Booking = {
-        id: res.id || `NP${Math.floor(100000 + Math.random() * 900000)}`,
-        reference: res.reference || `NP${Math.floor(100000 + Math.random() * 900000)}`,
-        service: cartItems[0]?.service.name || "Washing Machine Repair - Inspection",
-        package: cartItems[0]?.pkg.name || "Inspection",
-        service_name: cartItems[0]?.service.name || "Washing Machine Repair - Inspection",
-        package_name: cartItems[0]?.pkg.name || "Inspection",
+        id: orderRef,
+        reference: orderRef,
+        service: cartItems[0]?.service.name || "General AC Service & Gas Check",
+        package: cartItems[0]?.pkg.name || "Standard Package",
+        service_name: cartItems[0]?.service.name || "General AC Service & Gas Check",
+        package_name: cartItems[0]?.pkg.name || "Standard Package",
         status: "CONFIRMED",
-        payment_status: "PAID",
+        payment_status: methodName === "Pay after service" ? "PENDING" : "PAID",
         created_at: new Date().toISOString(),
-        total_amount_paise: totalPaise,
+        total_amount_paise: amountToPayPaise,
         price: {
-          lines: [{ code: "SERVICE", amount_paise: totalPaise }],
-          total_paise: totalPaise,
+          lines: [{ code: "SERVICE", amount_paise: amountToPayPaise }],
+          total_paise: amountToPayPaise,
           currency: "INR",
         },
         slot: {
-          start_at: `${scheduledDateStr}T14:00:00Z`,
-          end_at: `${scheduledDateStr}T16:00:00Z`,
+          start_at: `${scheduledDateStr}T11:45:00Z`,
+          end_at: `${scheduledDateStr}T13:45:00Z`,
         },
-        scheduled_date: scheduledDateStr,
-        scheduled_slot: slotStr,
-        scheduled_at: `${scheduledDateStr}T14:00:00Z`,
+        scheduled_date: SCHEDULE_DAYS[selectedDayIdx].full,
+        scheduled_slot: selectedSlotStr,
+        scheduled_at: `${scheduledDateStr}T11:45:00Z`,
         address: {
-          line_1: activeAddress?.line_1 || "Anna Nagar, Chennai - 600040",
-          locality: activeAddress?.locality || "Anna Nagar",
-          city: activeAddress?.city || "Chennai",
-          postal_code: activeAddress?.postal_code || "600040",
+          line_1: activeAddress.line_1,
+          locality: activeAddress.locality || "Horamavu",
+          city: activeAddress.city || "Bengaluru",
+          postal_code: activeAddress.postal_code || "560043",
         },
         technician: {
-          name: "Ramesh K.",
-          display_name: "Ramesh K.",
+          name: "Ramesh Kumar",
+          display_name: "Ramesh Kumar",
           phone: "+91 98765 00001",
           status: "ON_THE_WAY",
           rating: 4.9,
@@ -202,39 +266,40 @@ export function CartModal() {
       setCurrentStep("confirmed");
       clearCart();
     } catch {
-      // Offline / fallback simulated confirmation matching Mockup
+      // Offline fallback confirmation
+      const orderRef = `NP${Math.floor(100000 + Math.random() * 900000)}`;
       const fallbackBooking: Booking = {
-        id: "NP100456",
-        reference: "NP100456",
-        service: cartItems[0]?.service.name || "Washing Machine Repair - Inspection",
-        package: cartItems[0]?.pkg.name || "Inspection",
-        service_name: cartItems[0]?.service.name || "Washing Machine Repair - Inspection",
-        package_name: cartItems[0]?.pkg.name || "Inspection",
+        id: orderRef,
+        reference: orderRef,
+        service: cartItems[0]?.service.name || "General AC Service & Gas Check",
+        package: cartItems[0]?.pkg.name || "Standard Package",
+        service_name: cartItems[0]?.service.name || "General AC Service & Gas Check",
+        package_name: cartItems[0]?.pkg.name || "Standard Package",
         status: "CONFIRMED",
         payment_status: "PAID",
         created_at: new Date().toISOString(),
-        total_amount_paise: totalPaise,
+        total_amount_paise: amountToPayPaise,
         price: {
-          lines: [{ code: "SERVICE", amount_paise: totalPaise }],
-          total_paise: totalPaise,
+          lines: [{ code: "SERVICE", amount_paise: amountToPayPaise }],
+          total_paise: amountToPayPaise,
           currency: "INR",
         },
         slot: {
-          start_at: "2026-11-18T14:00:00Z",
-          end_at: "2026-11-18T16:00:00Z",
+          start_at: `2026-11-27T11:45:00Z`,
+          end_at: `2026-11-27T13:45:00Z`,
         },
-        scheduled_date: `Wed, 18 Nov 2026`,
-        scheduled_slot: "2:00 PM - 4:00 PM",
-        scheduled_at: "2026-11-18T14:00:00Z",
+        scheduled_date: currentScheduledSummary,
+        scheduled_slot: selectedSlotStr,
+        scheduled_at: `2026-11-27T11:45:00Z`,
         address: {
-          line_1: activeAddress?.line_1 || "No. 12, 3rd Street, Anna Nagar, Chennai - 600040",
-          locality: activeAddress?.locality || "Anna Nagar",
-          city: activeAddress?.city || "Chennai",
-          postal_code: activeAddress?.postal_code || "600040",
+          line_1: activeAddress.line_1,
+          locality: "Horamavu",
+          city: "Bengaluru",
+          postal_code: "560043",
         },
         technician: {
-          name: "Ramesh K.",
-          display_name: "Ramesh K.",
+          name: "Ramesh Kumar",
+          display_name: "Ramesh Kumar",
           phone: "+91 98765 00001",
           status: "ON_THE_WAY",
           rating: 4.9,
@@ -248,30 +313,6 @@ export function CartModal() {
     }
   };
 
-  const handleViewBooking = () => {
-    setIsCartOpen(false);
-    setCurrentStep("cart");
-    if (confirmedBooking) {
-      setActiveTrackingBooking(confirmedBooking);
-    }
-    setActiveTab("bookings");
-  };
-
-  const handleBookAnother = () => {
-    setIsCartOpen(false);
-    setCurrentStep("cart");
-    setActiveTab("home");
-  };
-
-  const handleStepBack = () => {
-    if (currentStep === "cart" || currentStep === "confirmed") {
-      setIsCartOpen(false);
-      setCurrentStep("cart");
-    } else if (currentStep === "address") setCurrentStep("cart");
-    else if (currentStep === "datetime") setCurrentStep("address");
-    else if (currentStep === "payment") setCurrentStep("datetime");
-  };
-
   return (
     <Modal
       visible={isCartOpen}
@@ -282,60 +323,107 @@ export function CartModal() {
     >
       <SafeAreaView style={styles.safeArea} edges={["top", "left", "right", "bottom"]}>
         <SwipeBackContainer onBack={handleStepBack}>
-        {/* ========================================================
-            HEADER
-            ======================================================== */}
-        <View style={styles.header}>
-          <Pressable
-            onPress={handleStepBack}
-            style={styles.headerBtn}
-            accessibilityRole="button"
-            accessibilityLabel="Back"
-          >
-            <Ionicons name="arrow-back" size={24} color={colors.ink} />
-          </Pressable>
+          {/* ========================================================
+              SCREEN 1: YOUR CART (MATCHING IMAGES 4 & 6)
+              ======================================================== */}
+          {currentStep === "cart" && (
+            <View style={styles.mainContainer}>
+              {/* Top Navigation Header */}
+              <View style={styles.header}>
+                <Pressable
+                  onPress={handleStepBack}
+                  style={styles.headerBtn}
+                  accessibilityRole="button"
+                  accessibilityLabel="Back"
+                >
+                  <Ionicons name="arrow-back" size={24} color={colors.ink} />
+                </Pressable>
+                <Text style={styles.headerTitle}>Your cart</Text>
+                <View style={{ width: 36 }} />
+              </View>
 
-          <Text style={styles.headerTitle}>
-            {currentStep === "cart" && "Your Cart"}
-            {currentStep === "address" && "Select Address"}
-            {currentStep === "datetime" && "Select Date & Time"}
-            {currentStep === "payment" && "Payment"}
-            {currentStep === "confirmed" && "Confirmation"}
-          </Text>
-
-          <View style={{ width: 36 }} />
-        </View>
-
-        {/* ========================================================
-            STEP 1: YOUR CART (Screen 11 in Mockup)
-            ======================================================== */}
-        {currentStep === "cart" && (
-          <View style={styles.stepContainer}>
-            <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
-              {cartItems.length === 0 ? (
-                <View style={styles.emptyCartBox}>
-                  <Ionicons name="cart-outline" size={56} color={colors.subtle} />
-                  <Text style={styles.emptyCartTitle}>Your cart is empty</Text>
-                  <Text style={styles.emptyCartSub}>
-                    Browse our trusted home services and add inspection or repair packages.
+              <ScrollView
+                style={styles.scroll}
+                contentContainerStyle={styles.scrollContent}
+                showsVerticalScrollIndicator={false}
+              >
+                {/* 1. Contact Info Strip */}
+                <View style={styles.contactRow}>
+                  <Ionicons name="call-outline" size={20} color={colors.ink} />
+                  <Text style={styles.contactText} numberOfLines={1}>
+                    {contactName}, {contactPhone}
                   </Text>
                   <Pressable
-                    onPress={() => {
-                      setIsCartOpen(false);
-                      setActiveTab("services");
-                    }}
-                    style={styles.browseServicesBtn}
+                    onPress={() => setIsEditingContact(true)}
+                    style={styles.contactChangeBtn}
+                    accessibilityRole="button"
+                    accessibilityLabel="Change contact details"
                   >
-                    <Text style={styles.browseServicesBtnText}>Browse Services</Text>
+                    <Text style={styles.contactChangeText}>Change</Text>
                   </Pressable>
                 </View>
-              ) : (
-                <>
-                  {/* Cart Item Cards with Steppers */}
+
+                {/* Edit Contact Inline Dialog */}
+                {Boolean(isEditingContact) && (
+                  <View style={styles.editContactBox}>
+                    <Text style={styles.editContactTitle}>Update Contact Details</Text>
+                    <TextInput
+                      placeholder="Full Name"
+                      placeholderTextColor={colors.subtle}
+                      value={contactName}
+                      onChangeText={setContactName}
+                      style={styles.editContactInput}
+                    />
+                    <TextInput
+                      placeholder="Phone Number (+91-...)"
+                      placeholderTextColor={colors.subtle}
+                      value={contactPhone}
+                      onChangeText={setContactPhone}
+                      keyboardType="phone-pad"
+                      style={styles.editContactInput}
+                    />
+                    <View style={styles.editContactActions}>
+                      <Pressable
+                        onPress={() => setIsEditingContact(false)}
+                        style={styles.editContactCancelBtn}
+                      >
+                        <Text style={styles.editContactCancelText}>Cancel</Text>
+                      </Pressable>
+                      <Pressable
+                        onPress={handleSaveContact}
+                        style={styles.editContactSaveBtn}
+                      >
+                        <Text style={styles.editContactSaveText}>Save</Text>
+                      </Pressable>
+                    </View>
+                  </View>
+                )}
+
+                <View style={styles.sectionDividerThick} />
+
+                {/* 2. Cart Items List */}
+                {cartItems.length === 0 ? (
+                  <View style={styles.emptyCartBox}>
+                    <Ionicons name="cart-outline" size={56} color={colors.subtle} />
+                    <Text style={styles.emptyCartTitle}>Your cart is empty</Text>
+                    <Text style={styles.emptyCartSub}>
+                      Browse verified NammaPros home services and add inspection or repair packages.
+                    </Text>
+                    <Pressable
+                      onPress={() => {
+                        setIsCartOpen(false);
+                        setActiveTab("services");
+                      }}
+                      style={styles.browseServicesBtn}
+                    >
+                      <Text style={styles.browseServicesBtnText}>Browse Services</Text>
+                    </Pressable>
+                  </View>
+                ) : (
                   <View style={styles.cartItemList}>
                     {cartItems.map((item) => {
                       const itemPaise =
-                        item.pkg.price_paise ?? item.service.starting_price_paise ?? 19900;
+                        item.pkg.price_paise ?? item.service.starting_price_paise ?? 126000;
                       return (
                         <View key={item.id} style={styles.cartCard}>
                           <Image
@@ -346,6 +434,9 @@ export function CartModal() {
                           <View style={styles.cartItemDetails}>
                             <Text style={styles.cartItemTitle} numberOfLines={2}>
                               {item.service.name}
+                            </Text>
+                            <Text style={styles.cartItemSubTitle}>
+                              {item.pkg.name || "Standard Inspection"}
                             </Text>
                             <Text style={styles.cartItemPrice}>
                               {formatInr(itemPaise)}
@@ -358,7 +449,7 @@ export function CartModal() {
                               }
                               style={styles.stepperActionBtn}
                             >
-                              <Ionicons name="remove" size={14} color={colors.ink} />
+                              <Ionicons name="remove" size={14} color={colors.primary} />
                             </Pressable>
                             <Text style={styles.stepperCount}>{item.quantity}</Text>
                             <Pressable
@@ -367,360 +458,767 @@ export function CartModal() {
                               }
                               style={styles.stepperActionBtn}
                             >
-                              <Ionicons name="add" size={14} color={colors.ink} />
+                              <Ionicons name="add" size={14} color={colors.primary} />
                             </Pressable>
                           </View>
                         </View>
                       );
                     })}
                   </View>
+                )}
 
-                  {/* Summary Box matching Mockup */}
-                  <View style={styles.summaryCard}>
-                    <View style={styles.summaryRow}>
-                      <Text style={styles.summaryLabel}>Item Total</Text>
-                      <Text style={styles.summaryValue}>{formatInr(totalPaise)}</Text>
+                {/* 3. Payment Summary (matching Image 4 & 6) */}
+                <View style={styles.paymentSummarySection}>
+                  <Text style={styles.paymentSummaryHeading}>Payment summary</Text>
+
+                  <View style={styles.summaryLineRow}>
+                    <Text style={styles.summaryLineLabel}>Item total</Text>
+                    <View style={styles.pricePairRow}>
+                      <Text style={styles.strikeMrp}>{formatInr(originalMrpPaise)}</Text>
+                      <Text style={styles.summaryLineValue}>{formatInr(itemTotalPaise)}</Text>
                     </View>
-                    <View style={styles.summaryRow}>
-                      <Text style={styles.summaryLabel}>Service Charge</Text>
-                      <Text style={[styles.summaryValue, { color: colors.success }]}>
-                        ₹0
+                  </View>
+
+                  <View style={styles.summaryLineRow}>
+                    <Text style={styles.taxesAndFeeLabel}>Taxes and Fee</Text>
+                    <Text style={styles.summaryLineValue}>
+                      {formatInr(taxesAndFeePaise)}
+                    </Text>
+                  </View>
+
+                  {selectedTip != null && selectedTip > 0 && (
+                    <View style={styles.summaryLineRow}>
+                      <Text style={styles.summaryLineLabel}>Professional Tip</Text>
+                      <Text style={styles.summaryLineValue}>₹{selectedTip}</Text>
+                    </View>
+                  )}
+
+                  <View style={styles.summaryDividerThin} />
+
+                  <View style={styles.summaryLineRow}>
+                    <Text style={styles.boldTotalLabel}>Total amount</Text>
+                    <Text style={styles.boldTotalValue}>
+                      {formatInr(totalAmountPaise)}
+                    </Text>
+                  </View>
+
+                  <View style={styles.summaryLineRow}>
+                    <Text style={styles.boldPayableLabel}>Amount to pay</Text>
+                    <Text style={styles.boldPayableValue}>
+                      {formatInr(amountToPayPaise)}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.sectionDividerThick} />
+
+                {/* 4. Add a Tip to Thank the Professional (matching Image 4 & 6) */}
+                <View style={styles.tipSection}>
+                  <Text style={styles.tipHeading}>
+                    Add a tip to thank the Professional
+                  </Text>
+
+                  <View style={styles.tipChipsRow}>
+                    {TIP_OPTIONS.map((amount) => {
+                      const isSelected = selectedTip === amount;
+                      const isPopular = amount === 75;
+                      return (
+                        <Pressable
+                          key={amount}
+                          onPress={() => handleSelectTipOption(amount)}
+                          style={[
+                            styles.tipChip,
+                            isSelected && styles.tipChipSelected,
+                          ]}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Tip ₹${amount}`}
+                        >
+                          <Text
+                            style={[
+                              styles.tipChipText,
+                              isSelected && styles.tipChipTextSelected,
+                            ]}
+                          >
+                            ₹{amount}
+                          </Text>
+                          {Boolean(isPopular) && (
+                            <View style={styles.popularTipBadge}>
+                              <Text style={styles.popularTipBadgeText}>POPULAR</Text>
+                            </View>
+                          )}
+                        </Pressable>
+                      );
+                    })}
+
+                    {/* Custom Tip Chip */}
+                    <Pressable
+                      onPress={() => setShowCustomTipInput((prev) => !prev)}
+                      style={[
+                        styles.tipChip,
+                        showCustomTipInput && styles.tipChipSelected,
+                      ]}
+                      accessibilityRole="button"
+                      accessibilityLabel="Custom Tip"
+                    >
+                      <Text
+                        style={[
+                          styles.tipChipText,
+                          showCustomTipInput && styles.tipChipTextSelected,
+                        ]}
+                      >
+                        Custom
+                      </Text>
+                    </Pressable>
+                  </View>
+
+                  {/* Custom Tip Input */}
+                  {Boolean(showCustomTipInput) && (
+                    <View style={styles.customTipInputRow}>
+                      <TextInput
+                        placeholder="Enter tip (e.g. 150)"
+                        placeholderTextColor={colors.subtle}
+                        value={customTipVal}
+                        onChangeText={setCustomTipVal}
+                        keyboardType="numeric"
+                        style={styles.customTipInput}
+                      />
+                      <Pressable
+                        onPress={handleApplyCustomTip}
+                        style={styles.applyTipBtn}
+                      >
+                        <Text style={styles.applyTipBtnText}>Apply</Text>
+                      </Pressable>
+                    </View>
+                  )}
+
+                  <Text style={styles.tipDisclaimer}>
+                    100% of the tip goes to the professional.
+                  </Text>
+                </View>
+
+                <View style={styles.sectionDividerThick} />
+
+                {/* 5. Cancellation Policy (matching Image 4 & 6) */}
+                <View style={styles.cancellationSection}>
+                  <Text style={styles.cancellationHeading}>Cancellation policy</Text>
+                  <Text style={styles.cancellationBody}>
+                    Free cancellations if done more than 12 hrs before the service. A
+                    fee will be charged otherwise.
+                  </Text>
+                  <Pressable
+                    onPress={() =>
+                      Alert.alert(
+                        "NammaPros Cancellation Policy",
+                        "• Free cancellation up to 12 hours prior to the slot.\n• Rescheduling is completely free anytime.\n• 100% refund for unfulfilled requests."
+                      )
+                    }
+                  >
+                    <Text style={styles.readPolicyLink}>Read full policy</Text>
+                  </Pressable>
+                </View>
+              </ScrollView>
+
+              {/* 6. Sticky Bottom Bar (Image 4 vs Image 6) */}
+              <View style={styles.cartBottomBar}>
+                {/* Row 1: Address selection */}
+                <Pressable
+                  onPress={() => setShowAddressPicker(true)}
+                  style={styles.bottomAddressRow}
+                  accessibilityRole="button"
+                  accessibilityLabel="Change address"
+                >
+                  <Ionicons name="home-outline" size={18} color={colors.ink} />
+                  <Text style={styles.bottomAddressText} numberOfLines={1}>
+                    {activeAddress.label || "Home"} - {activeAddress.line_1}
+                  </Text>
+                  <Ionicons name="pencil-outline" size={16} color={colors.ink} />
+                </Pressable>
+
+                {/* Row 2: Selected Slot (Only appears after slot is selected, matching Image 6) */}
+                {Boolean(isSlotSelected) && (
+                  <Pressable
+                    onPress={() => setCurrentStep("slot")}
+                    style={styles.bottomSlotRow}
+                    accessibilityRole="button"
+                    accessibilityLabel="Change scheduled time"
+                  >
+                    <Ionicons name="time-outline" size={18} color={colors.ink} />
+                    <Text style={styles.bottomSlotText} numberOfLines={1}>
+                      {currentScheduledSummary}
+                    </Text>
+                    <Ionicons name="pencil-outline" size={16} color={colors.ink} />
+                  </Pressable>
+                )}
+
+                {/* Row 3: Action Button in NammaPros Burgundy */}
+                {!isSlotSelected ? (
+                  <Pressable
+                    onPress={() => setCurrentStep("slot")}
+                    style={styles.brandActionBtn}
+                    accessibilityRole="button"
+                    accessibilityLabel="Select slot"
+                  >
+                    <Text style={styles.brandActionBtnText}>Select slot</Text>
+                  </Pressable>
+                ) : (
+                  <>
+                    <Pressable
+                      onPress={() => setCurrentStep("payment")}
+                      style={styles.brandActionBtn}
+                      accessibilityRole="button"
+                      accessibilityLabel="Proceed to pay"
+                    >
+                      <Text style={styles.brandActionBtnText}>Proceed to pay</Text>
+                    </Pressable>
+                    <Text style={styles.legalDisclaimer}>
+                      By proceeding, you agree to our T&C, Privacy and Cancellation
+                      Policy.
+                    </Text>
+                  </>
+                )}
+              </View>
+
+              {/* Address Picker Modal */}
+              {Boolean(showAddressPicker) && (
+                <View style={styles.addressModalBackdrop}>
+                  <View style={styles.addressModalBox}>
+                    <View style={styles.addressModalHeader}>
+                      <Text style={styles.addressModalTitle}>Select Address</Text>
+                      <Pressable onPress={() => setShowAddressPicker(false)}>
+                        <Ionicons name="close" size={22} color={colors.ink} />
+                      </Pressable>
+                    </View>
+
+                    <ScrollView style={{ maxHeight: 220 }}>
+                      {savedAddresses.map((addr) => {
+                        const isSelected = activeAddress.id === addr.id;
+                        return (
+                          <Pressable
+                            key={addr.id}
+                            onPress={() => {
+                              setSelectedAddressId(addr.id);
+                              setShowAddressPicker(false);
+                            }}
+                            style={[
+                              styles.addressChoiceCard,
+                              isSelected && styles.addressChoiceCardActive,
+                            ]}
+                          >
+                            <Ionicons
+                              name={isSelected ? "radio-button-on" : "radio-button-off"}
+                              size={18}
+                              color={isSelected ? colors.primary : colors.muted}
+                            />
+                            <View style={{ flex: 1 }}>
+                              <Text style={styles.addressChoiceLabel}>
+                                {addr.label || "Home"}
+                              </Text>
+                              <Text style={styles.addressChoiceText}>
+                                {addr.line_1}
+                              </Text>
+                            </View>
+                          </Pressable>
+                        );
+                      })}
+                    </ScrollView>
+
+                    {!showAddAddressForm ? (
+                      <Pressable
+                        onPress={() => setShowAddAddressForm(true)}
+                        style={styles.addNewAddrBtn}
+                      >
+                        <Ionicons name="add" size={18} color={colors.primary} />
+                        <Text style={styles.addNewAddrBtnText}>Add New Address</Text>
+                      </Pressable>
+                    ) : (
+                      <View style={{ marginTop: 10, gap: 8 }}>
+                        <TextInput
+                          placeholder="House/Flat No, Street, Area…"
+                          placeholderTextColor={colors.subtle}
+                          value={newAddressText}
+                          onChangeText={setNewAddressText}
+                          style={styles.newAddrInput}
+                        />
+                        <Pressable
+                          onPress={handleCreateNewAddress}
+                          style={styles.saveNewAddrBtn}
+                        >
+                          <Text style={styles.saveNewAddrBtnText}>Save & Select</Text>
+                        </Pressable>
+                      </View>
+                    )}
+                  </View>
+                </View>
+              )}
+            </View>
+          )}
+
+          {/* ========================================================
+              SCREEN 2: WHEN SHOULD PROFESSIONAL ARRIVE? (MATCHING IMAGE 5)
+              ======================================================== */}
+          {currentStep === "slot" && (
+            <View style={styles.mainContainer}>
+              {/* Header with Close (X) circle button on the right */}
+              <View style={styles.header}>
+                <Pressable
+                  onPress={handleStepBack}
+                  style={styles.headerBtn}
+                  accessibilityRole="button"
+                  accessibilityLabel="Back"
+                >
+                  <Ionicons name="arrow-back" size={24} color={colors.ink} />
+                </Pressable>
+                <Text style={styles.headerTitleSlot}>
+                  When should the professional arrive?
+                </Text>
+                <Pressable
+                  onPress={handleStepBack}
+                  style={styles.headerCloseBtn}
+                  accessibilityRole="button"
+                  accessibilityLabel="Close"
+                >
+                  <Ionicons name="close" size={20} color={colors.ink} />
+                </Pressable>
+              </View>
+
+              <ScrollView
+                style={styles.scroll}
+                contentContainerStyle={styles.slotScrollContent}
+                showsVerticalScrollIndicator={false}
+              >
+                {/* Option 1: Instant Arrival (44 mins) */}
+                <Pressable
+                  onPress={() => setArrivalType("instant")}
+                  style={[
+                    styles.arrivalTypeCard,
+                    arrivalType === "instant" && styles.arrivalTypeCardSelected,
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Instant Arrival in 44 mins"
+                >
+                  <View style={styles.arrivalCardLeft}>
+                    <View style={styles.instantBadge}>
+                      <Ionicons name="flash" size={12} color="#15803D" />
+                      <Text style={styles.instantBadgeText}>Instant</Text>
+                    </View>
+                    <Text style={styles.arrivalCardTitle}>In 44 mins</Text>
+                  </View>
+                  <View style={styles.radioOutline}>
+                    {arrivalType === "instant" && <View style={styles.radioDot} />}
+                  </View>
+                </Pressable>
+
+                {/* Option 2: Schedule for later */}
+                <View
+                  style={[
+                    styles.arrivalTypeCard,
+                    arrivalType === "scheduled" && styles.arrivalTypeCardSelected,
+                    { flexDirection: "column", alignItems: "stretch" },
+                  ]}
+                >
+                  <Pressable
+                    onPress={() => setArrivalType("scheduled")}
+                    style={styles.scheduleHeaderRow}
+                    accessibilityRole="button"
+                    accessibilityLabel="Schedule for later"
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.arrivalCardTitle}>Schedule for later</Text>
+                      <Text style={styles.arrivalCardSub}>
+                        Select your preferred day & time
                       </Text>
                     </View>
-                    <View style={styles.summaryDivider} />
-                    <View style={styles.summaryRow}>
-                      <Text style={styles.summaryTotalLabel}>Total Payable</Text>
-                      <Text style={styles.summaryTotalValue}>{formatInr(totalPaise)}</Text>
+                    <View style={styles.radioOutline}>
+                      {arrivalType === "scheduled" && <View style={styles.radioDot} />}
                     </View>
-                  </View>
-                </>
-              )}
-            </ScrollView>
+                  </Pressable>
 
-            {cartItems.length > 0 && (
-              <View style={styles.bottomBar}>
-                <Pressable
-                  onPress={handleNextFromCart}
-                  style={styles.pillActionBtn}
-                  accessibilityRole="button"
-                  accessibilityLabel="Proceed to Book"
-                >
-                  <Text style={styles.pillActionBtnText}>Proceed to Book</Text>
-                  <Ionicons name="arrow-forward" size={16} color={colors.white} />
-                </Pressable>
-              </View>
-            )}
-          </View>
-        )}
-
-        {/* ========================================================
-            STEP 2: SELECT ADDRESS (Screen 12 in Mockup)
-            ======================================================== */}
-        {currentStep === "address" && (
-          <View style={styles.stepContainer}>
-            <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
-              <View style={styles.addressList}>
-                {savedAddresses.map((addr) => {
-                  const isSelected = selectedAddressId === addr.id;
-                  return (
-                    <Pressable
-                      key={addr.id}
-                      onPress={() => setSelectedAddressId(addr.id)}
-                      style={[styles.addressCard, isSelected && styles.addressCardSelected]}
-                    >
-                      <View style={styles.radioCircle}>
-                        {isSelected && <View style={styles.radioInner} />}
-                      </View>
-                      <View style={styles.addressCardContent}>
-                        <Text style={styles.addressLabel}>{addr.label || "Address"}</Text>
-                        <Text style={styles.addressText}>{addr.line_1}</Text>
-                      </View>
-                    </Pressable>
-                  );
-                })}
-              </View>
-
-              <Pressable
-                onPress={() => setShowAddAddress(true)}
-                style={styles.addAddressBtn}
-              >
-                <Ionicons name="add" size={18} color={colors.primary} />
-                <Text style={styles.addAddressText}>Add New Address</Text>
-              </Pressable>
-
-              {/* Add Address Form Input */}
-              {Boolean(showAddAddress) && (
-                <View style={styles.newAddressBox}>
-                  <Text style={styles.newAddressTitle}>Enter New Address</Text>
-                  <TextInput
-                    placeholder="No., Building, Street Name, Area…"
-                    placeholderTextColor={colors.subtle}
-                    value={newLine1}
-                    onChangeText={setNewLine1}
-                    style={styles.newAddressInput}
-                    multiline
-                  />
-                  <View style={styles.newAddressActions}>
-                    <Pressable
-                      onPress={() => setShowAddAddress(false)}
-                      style={styles.cancelAddressBtn}
-                    >
-                      <Text style={styles.cancelAddressBtnText}>Cancel</Text>
-                    </Pressable>
-                    <Pressable
-                      onPress={handleCreateNewAddress}
-                      style={styles.saveAddressBtn}
-                    >
-                      <Text style={styles.saveAddressBtnText}>Save Address</Text>
-                    </Pressable>
-                  </View>
-                </View>
-              )}
-            </ScrollView>
-
-            <View style={styles.bottomBar}>
-              <Pressable
-                onPress={() => setCurrentStep("datetime")}
-                style={styles.pillActionBtn}
-              >
-                <Text style={styles.pillActionBtnText}>Continue</Text>
-              </Pressable>
-            </View>
-          </View>
-        )}
-
-        {/* ========================================================
-            STEP 3: SELECT DATE & TIME (Single Unified Booking Step)
-            ======================================================== */}
-        {currentStep === "datetime" && (
-          <View style={styles.stepContainer}>
-            <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
-              {/* Section 1: Date Selection */}
-              <Text style={styles.datetimeSectionTitle}>1. Select Date</Text>
-              <View style={styles.calendarContainer}>
-                {/* Month Navigator */}
-                <View style={styles.monthHeader}>
-                  <Ionicons name="chevron-back" size={20} color={colors.ink} />
-                  <Text style={styles.monthTitle}>Nov 2026</Text>
-                  <Ionicons name="chevron-forward" size={20} color={colors.ink} />
-                </View>
-
-                {/* Day of Week Row */}
-                <View style={styles.dayOfWeekRow}>
-                  {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-                    <Text key={day} style={styles.dayOfWeekText}>
-                      {day}
-                    </Text>
-                  ))}
-                </View>
-
-                {/* Calendar Days Grid */}
-                <View style={styles.daysGrid}>
-                  {Array.from({ length: 30 }, (_, i) => i + 1).map((dayNum) => {
-                    const isSelected = selectedDateDay === dayNum;
-                    return (
-                      <Pressable
-                        key={dayNum}
-                        onPress={() => setSelectedDateDay(dayNum)}
-                        style={[styles.dayCell, isSelected && styles.dayCellSelected]}
-                      >
-                        <Text
+                  {/* Days Selector Row (Today 27, Sat 28, Sun 29) */}
+                  <View style={styles.daysRow}>
+                    {SCHEDULE_DAYS.map((dayItem, idx) => {
+                      const isDaySelected = selectedDayIdx === idx;
+                      return (
+                        <Pressable
+                          key={dayItem.date}
+                          onPress={() => {
+                            setArrivalType("scheduled");
+                            setSelectedDayIdx(idx);
+                          }}
                           style={[
-                            styles.dayCellText,
-                            isSelected && styles.dayCellTextSelected,
+                            styles.dayBox,
+                            isDaySelected && styles.dayBoxSelected,
                           ]}
+                          accessibilityRole="button"
+                          accessibilityLabel={`${dayItem.label} ${dayItem.date}`}
                         >
-                          {dayNum}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              </View>
+                          <Text
+                            style={[
+                              styles.dayBoxLabel,
+                              isDaySelected && styles.dayBoxLabelSelected,
+                            ]}
+                          >
+                            {dayItem.label}
+                          </Text>
+                          <Text
+                            style={[
+                              styles.dayBoxDate,
+                              isDaySelected && styles.dayBoxDateSelected,
+                            ]}
+                          >
+                            {dayItem.date}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
 
-              {/* Section 2: Time Slot Selection (Directly on the same screen) */}
-              <View style={styles.timeSectionHeaderRow}>
-                <Text style={styles.datetimeSectionTitle}>2. Choose Time Slot</Text>
-                <View style={styles.selectedDayBadge}>
-                  <Ionicons name="calendar-outline" size={13} color={colors.primary} />
-                  <Text style={styles.selectedDayBadgeText}>Nov {selectedDateDay}, 2026</Text>
-                </View>
-              </View>
+                  <View style={styles.dottedDivider} />
 
-              <View style={styles.slotsList}>
-                {TIME_SLOTS.map((slot, idx) => {
-                  const isSelected = selectedSlotIndex === idx;
-                  return (
-                    <Pressable
-                      key={slot}
-                      onPress={() => setSelectedSlotIndex(idx)}
-                      style={[styles.slotCard, isSelected && styles.slotCardSelected]}
-                    >
-                      <View style={styles.slotCardLeft}>
-                        <Ionicons
-                          name={isSelected ? "time" : "time-outline"}
-                          size={18}
-                          color={isSelected ? colors.primary : colors.muted}
-                        />
-                        <Text
-                          style={[
-                            styles.slotCardText,
-                            isSelected && styles.slotCardTextSelected,
-                          ]}
-                        >
-                          {slot}
-                        </Text>
-                      </View>
-                      {isSelected ? (
-                        <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
-                      ) : (
-                        <Ionicons name="ellipse-outline" size={20} color="#D6D3D1" />
-                      )}
-                    </Pressable>
-                  );
-                })}
-              </View>
-            </ScrollView>
-
-            <View style={styles.bottomBar}>
-              <View style={styles.datetimeSummaryRow}>
-                <Text style={styles.datetimeSummaryLabel}>Selected Schedule:</Text>
-                <Text style={styles.datetimeSummaryValue}>
-                  {selectedDateDay} Nov 2026 • {TIME_SLOTS[selectedSlotIndex]}
-                </Text>
-              </View>
-              <Pressable
-                onPress={() => setCurrentStep("payment")}
-                style={styles.pillActionBtn}
-                accessibilityRole="button"
-                accessibilityLabel="Continue to Payment"
-              >
-                <Text style={styles.pillActionBtnText}>Continue to Payment</Text>
-                <Ionicons name="arrow-forward" size={16} color={colors.white} />
-              </Pressable>
-            </View>
-          </View>
-        )}
-
-        {/* ========================================================
-            STEP 5: PAYMENT (Screen 15 in Mockup)
-            ======================================================== */}
-        {currentStep === "payment" && (
-          <View style={styles.stepContainer}>
-            <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
-              {/* Total Amount Box */}
-              <View style={styles.paymentSummaryBox}>
-                <Text style={styles.paymentSummaryLabel}>Total Amount</Text>
-                <Text style={styles.paymentSummaryValue}>{formatInr(totalPaise)}</Text>
-              </View>
-
-              {/* Pay using UPI Section */}
-              <Text style={styles.paymentMethodHeading}>Pay using UPI</Text>
-              <View style={styles.upiOptionsContainer}>
-                {UPI_APPS.map((app) => {
-                  const isSelected = selectedUpiApp === app.id;
-                  return (
-                    <Pressable
-                      key={app.id}
-                      onPress={() => setSelectedUpiApp(app.id)}
-                      style={[
-                        styles.upiOptionRow,
-                        isSelected && styles.upiOptionRowSelected,
-                      ]}
-                    >
-                      <View style={styles.upiLeft}>
-                        <View style={styles.upiIconCircle}>
-                          <Ionicons
-                            name={app.icon as any}
-                            size={18}
-                            color={colors.primary}
-                          />
-                        </View>
-                        <Text style={styles.upiName}>{app.name}</Text>
-                      </View>
-                      <View style={styles.radioCircle}>
-                        {isSelected && <View style={styles.radioInner} />}
-                      </View>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            </ScrollView>
-
-            <View style={styles.bottomBar}>
-              <Pressable
-                onPress={handleProcessPayment}
-                disabled={isSubmitting}
-                style={[styles.pillActionBtn, isSubmitting && { opacity: 0.7 }]}
-              >
-                {isSubmitting ? (
-                  <ActivityIndicator size="small" color={colors.white} />
-                ) : (
-                  <Text style={styles.pillActionBtnText}>Pay {formatInr(totalPaise)}</Text>
-                )}
-              </Pressable>
-            </View>
-          </View>
-        )}
-
-        {/* ========================================================
-            STEP 6: BOOKING CONFIRMED! (Screen 16 in Mockup)
-            ======================================================== */}
-        {currentStep === "confirmed" && (
-          <View style={styles.stepContainer}>
-            <ScrollView
-              style={styles.scroll}
-              contentContainerStyle={styles.confirmedContent}
-            >
-              {/* Big Green Circle with Checkmark */}
-              <View style={styles.greenCheckCircle}>
-                <Ionicons name="checkmark" size={54} color={colors.white} />
-              </View>
-
-              <Text style={styles.confirmedHeading}>Booking Confirmed!</Text>
-              <Text style={styles.bookingIdText}>
-                Booking ID: {confirmedBooking?.reference || "NP100456"}
-              </Text>
-
-              {/* Booking Details Card matching Mockup */}
-              <View style={styles.confirmedDetailsCard}>
-                <Text style={styles.confirmedCardLabel}>Your service is booked for</Text>
-                <Text style={styles.confirmedCardSchedule}>
-                  Wed, {selectedDateDay} Nov 2026
-                </Text>
-                <Text style={styles.confirmedCardSlot}>
-                  {TIME_SLOTS[selectedSlotIndex]}
-                </Text>
-                <Text style={styles.confirmedCardAddress}>
-                  {activeAddress?.line_1 || "Anna Nagar, Chennai - 600040"}
-                </Text>
-              </View>
-
-              {/* Action Buttons */}
-              <View style={styles.confirmedActions}>
-                <Pressable
-                  onPress={handleViewBooking}
-                  style={styles.pillActionBtn}
-                  accessibilityRole="button"
-                  accessibilityLabel="View Booking"
-                >
-                  <Text style={styles.pillActionBtnText}>View Booking</Text>
-                </Pressable>
-
-                <Pressable
-                  onPress={handleBookAnother}
-                  style={styles.secondaryActionBtn}
-                  accessibilityRole="button"
-                  accessibilityLabel="Book Another Service"
-                >
-                  <Text style={styles.secondaryActionBtnText}>
-                    Book Another Service
+                  {/* Start Time Section */}
+                  <Text style={styles.startTimeSectionHeading}>
+                    Select start time of service
                   </Text>
+
+                  {/* 3-Column Time Slot Grid */}
+                  <View style={styles.slotsGrid3Col}>
+                    {SCHEDULE_SLOTS_3COL.map((slot) => {
+                      const isSlotActive =
+                        arrivalType === "scheduled" && selectedSlotStr === slot;
+                      return (
+                        <Pressable
+                          key={slot}
+                          onPress={() => {
+                            setArrivalType("scheduled");
+                            setSelectedSlotStr(slot);
+                          }}
+                          style={[
+                            styles.slotPill3Col,
+                            isSlotActive && styles.slotPill3ColSelected,
+                          ]}
+                          accessibilityRole="button"
+                          accessibilityLabel={slot}
+                        >
+                          <Text
+                            style={[
+                              styles.slotPill3ColText,
+                              isSlotActive && styles.slotPill3ColTextSelected,
+                            ]}
+                          >
+                            {slot}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </View>
+              </ScrollView>
+
+              {/* Bottom Sticky Button in NammaPros Burgundy */}
+              <View style={styles.slotBottomBar}>
+                <Pressable
+                  onPress={handleProceedFromSlot}
+                  style={styles.brandActionBtn}
+                  accessibilityRole="button"
+                  accessibilityLabel="Proceed to checkout"
+                >
+                  <Text style={styles.brandActionBtnText}>Proceed to checkout</Text>
                 </Pressable>
               </View>
-            </ScrollView>
-          </View>
-        )}
+            </View>
+          )}
+
+          {/* ========================================================
+              SCREEN 3: SELECT PAYMENT METHOD (MATCHING IMAGE 7)
+              ======================================================== */}
+          {currentStep === "payment" && (
+            <View style={styles.mainContainer}>
+              {/* Payment Header with Amount Subtitle */}
+              <View style={styles.paymentHeader}>
+                <Pressable
+                  onPress={() => setCurrentStep("cart")}
+                  style={styles.headerBtn}
+                  accessibilityRole="button"
+                  accessibilityLabel="Back"
+                >
+                  <Ionicons name="arrow-back" size={24} color={colors.ink} />
+                </Pressable>
+                <View style={{ flex: 1, marginLeft: 8 }}>
+                  <Text style={styles.paymentHeaderTitle}>Select payment method</Text>
+                  <Text style={styles.paymentHeaderSub}>
+                    Amount to pay: {formatInr(amountToPayPaise)}
+                  </Text>
+                </View>
+              </View>
+
+              <ScrollView
+                style={styles.scroll}
+                contentContainerStyle={styles.paymentScrollContent}
+                showsVerticalScrollIndicator={false}
+              >
+                {/* 1. UPI Section with MOST POPULAR green badge */}
+                <View style={styles.paymentGroupHeaderRow}>
+                  <Text style={styles.paymentGroupTitle}>UPI</Text>
+                  <View style={styles.mostPopularBadge}>
+                    <Text style={styles.mostPopularBadgeText}>MOST POPULAR</Text>
+                  </View>
+                </View>
+
+                <View style={styles.paymentGroupCard}>
+                  {/* Google Pay */}
+                  <Pressable
+                    onPress={() => handleProcessPayment("Google Pay UPI")}
+                    style={styles.paymentMethodRow}
+                  >
+                    <View style={styles.paymentMethodLeft}>
+                      <View style={styles.paymentIconSquare}>
+                        <Ionicons name="logo-google" size={18} color="#EA4335" />
+                      </View>
+                      <Text style={styles.paymentMethodName}>Google Pay UPI</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={18} color={colors.muted} />
+                  </Pressable>
+                  <View style={styles.paymentMethodDivider} />
+
+                  {/* PhonePe */}
+                  <Pressable
+                    onPress={() => handleProcessPayment("PhonePe UPI")}
+                    style={styles.paymentMethodRow}
+                  >
+                    <View style={styles.paymentMethodLeft}>
+                      <View style={[styles.paymentIconSquare, { backgroundColor: "#5F259F" }]}>
+                        <Ionicons name="flash" size={16} color={colors.white} />
+                      </View>
+                      <Text style={styles.paymentMethodName}>PhonePe UPI</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={18} color={colors.muted} />
+                  </Pressable>
+                  <View style={styles.paymentMethodDivider} />
+
+                  {/* Paytm */}
+                  <Pressable
+                    onPress={() => handleProcessPayment("Paytm UPI")}
+                    style={styles.paymentMethodRow}
+                  >
+                    <View style={styles.paymentMethodLeft}>
+                      <View style={[styles.paymentIconSquare, { backgroundColor: "#00BAF2" }]}>
+                        <Ionicons name="wallet" size={16} color={colors.white} />
+                      </View>
+                      <View>
+                        <Text style={styles.paymentMethodName}>Paytm UPI</Text>
+                        <Text style={styles.cashbackSub}>
+                          Get up to ₹200 cashback on minimum order of ₹199
+                        </Text>
+                      </View>
+                    </View>
+                    <Ionicons name="chevron-forward" size={18} color={colors.muted} />
+                  </Pressable>
+                  <View style={styles.paymentMethodDivider} />
+
+                  {/* Any UPI App */}
+                  <Pressable
+                    onPress={() => handleProcessPayment("Pay via any UPI app")}
+                    style={styles.paymentMethodRow}
+                  >
+                    <View style={styles.paymentMethodLeft}>
+                      <View style={styles.paymentIconSquare}>
+                        <Ionicons name="qr-code-outline" size={18} color={colors.primary} />
+                      </View>
+                      <Text style={styles.paymentMethodName}>Pay via any UPI app</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={18} color={colors.muted} />
+                  </Pressable>
+                </View>
+
+                {/* 2. Cards Section */}
+                <Text style={styles.paymentGroupTitleStandalone}>Cards</Text>
+                <View style={styles.paymentGroupCard}>
+                  <Pressable
+                    onPress={() => handleProcessPayment("Card Payment")}
+                    style={styles.paymentMethodRow}
+                  >
+                    <View style={styles.paymentMethodLeft}>
+                      <View style={styles.paymentIconSquare}>
+                        <Ionicons name="card" size={18} color="#2563EB" />
+                      </View>
+                      <Text style={styles.paymentMethodName}>Add new card</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={18} color={colors.muted} />
+                  </Pressable>
+                </View>
+
+                {/* 3. Wallet Section */}
+                <Text style={styles.paymentGroupTitleStandalone}>Wallet</Text>
+                <View style={styles.paymentGroupCard}>
+                  <Pressable
+                    onPress={() => handleProcessPayment("Amazon Pay Balance")}
+                    style={styles.paymentMethodRow}
+                  >
+                    <View style={styles.paymentMethodLeft}>
+                      <View style={[styles.paymentIconSquare, { backgroundColor: "#232F3E" }]}>
+                        <Ionicons name="logo-amazon" size={18} color="#FF9900" />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.paymentMethodName}>
+                          Amazon Pay Balance
+                        </Text>
+                        <Text style={styles.cashbackSub}>
+                          Setup now • Get assured cashback on paying via Amazon Pay Balance
+                        </Text>
+                      </View>
+                    </View>
+                    <Ionicons name="chevron-forward" size={18} color={colors.muted} />
+                  </Pressable>
+                </View>
+
+                {/* 4. Pay with app Section */}
+                <Text style={styles.paymentGroupTitleStandalone}>Pay with app</Text>
+                <View style={styles.paymentGroupCard}>
+                  <Pressable
+                    onPress={() => handleProcessPayment("CRED Pay")}
+                    style={styles.paymentMethodRow}
+                  >
+                    <View style={styles.paymentMethodLeft}>
+                      <View style={[styles.paymentIconSquare, { backgroundColor: "#1C1917" }]}>
+                        <Ionicons name="shield" size={16} color={colors.white} />
+                      </View>
+                      <Text style={styles.paymentMethodName}>CRED Pay</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={18} color={colors.muted} />
+                  </Pressable>
+                </View>
+
+                {/* 5. Netbanking Section */}
+                <Text style={styles.paymentGroupTitleStandalone}>Netbanking</Text>
+                <View style={styles.paymentGroupCard}>
+                  <Pressable
+                    onPress={() => handleProcessPayment("Netbanking")}
+                    style={styles.paymentMethodRow}
+                  >
+                    <View style={styles.paymentMethodLeft}>
+                      <View style={styles.paymentIconSquare}>
+                        <Ionicons name="business" size={18} color="#4F46E5" />
+                      </View>
+                      <Text style={styles.paymentMethodName}>Netbanking</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={18} color={colors.muted} />
+                  </Pressable>
+                </View>
+
+                {/* 6. Pay after service (NammaPros Trust Guarantee) */}
+                <Text style={styles.paymentGroupTitleStandalone}>
+                  Pay after service
+                </Text>
+                <View style={styles.paymentGroupCard}>
+                  <Pressable
+                    onPress={() => handleProcessPayment("Pay after service")}
+                    style={styles.paymentMethodRow}
+                  >
+                    <View style={styles.paymentMethodLeft}>
+                      <View style={[styles.paymentIconSquare, { backgroundColor: "#15803D" }]}>
+                        <Ionicons name="cash-outline" size={18} color={colors.white} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.paymentMethodName}>
+                          Cash or UPI on completion
+                        </Text>
+                        <Text style={styles.cashbackSub}>
+                          Pay the professional only after 100% satisfaction
+                        </Text>
+                      </View>
+                    </View>
+                    <Ionicons name="chevron-forward" size={18} color={colors.muted} />
+                  </Pressable>
+                </View>
+              </ScrollView>
+
+              {Boolean(isSubmitting) && (
+                <View style={styles.loadingOverlay}>
+                  <ActivityIndicator size="large" color={colors.primary} />
+                  <Text style={styles.loadingText}>Processing your booking…</Text>
+                </View>
+              )}
+            </View>
+          )}
+
+          {/* ========================================================
+              SCREEN 4: BOOKING CONFIRMED!
+              ======================================================== */}
+          {currentStep === "confirmed" && (
+            <View style={styles.mainContainer}>
+              <ScrollView
+                style={styles.scroll}
+                contentContainerStyle={styles.confirmedContent}
+                showsVerticalScrollIndicator={false}
+              >
+                {/* Big Burgundy / Green Circle with Checkmark */}
+                <View style={styles.confirmedCheckCircle}>
+                  <Ionicons name="checkmark" size={54} color={colors.white} />
+                </View>
+
+                <Text style={styles.confirmedHeading}>Booking Confirmed!</Text>
+                <Text style={styles.bookingIdText}>
+                  Booking ID: {confirmedBooking?.reference || "NP100456"}
+                </Text>
+
+                {/* Details Card */}
+                <View style={styles.confirmedDetailsCard}>
+                  <Text style={styles.confirmedCardLabel}>
+                    Your service is booked for
+                  </Text>
+                  <Text style={styles.confirmedCardSchedule}>
+                    {confirmedBooking?.scheduled_date || currentScheduledSummary}
+                  </Text>
+                  <Text style={styles.confirmedCardSlot}>
+                    {confirmedBooking?.scheduled_slot || selectedSlotStr}
+                  </Text>
+                  <Text style={styles.confirmedCardAddress}>
+                    {activeAddress.line_1}
+                  </Text>
+
+                  <View style={styles.assignedTechRow}>
+                    <Ionicons name="shield-checkmark" size={16} color={colors.primary} />
+                    <Text style={styles.assignedTechText}>
+                      Ramesh Kumar (4.9 ★) • ID & Police Verified
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Action Buttons */}
+                <View style={styles.confirmedActions}>
+                  <Pressable
+                    onPress={() => {
+                      setIsCartOpen(false);
+                      setCurrentStep("cart");
+                      if (confirmedBooking) {
+                        setActiveTrackingBooking(confirmedBooking);
+                      }
+                      setActiveTab("bookings");
+                    }}
+                    style={styles.brandActionBtn}
+                    accessibilityRole="button"
+                    accessibilityLabel="View Booking"
+                  >
+                    <Text style={styles.brandActionBtnText}>View Booking</Text>
+                  </Pressable>
+
+                  <Pressable
+                    onPress={() => {
+                      setIsCartOpen(false);
+                      setCurrentStep("cart");
+                      setActiveTab("home");
+                    }}
+                    style={styles.secondaryActionBtn}
+                    accessibilityRole="button"
+                    accessibilityLabel="Book Another Service"
+                  >
+                    <Text style={styles.secondaryActionBtnText}>
+                      Book Another Service
+                    </Text>
+                  </Pressable>
+                </View>
+              </ScrollView>
+            </View>
+          )}
         </SwipeBackContainer>
       </SafeAreaView>
     </Modal>
@@ -733,12 +1231,17 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     paddingTop: Platform.OS === "android" ? Math.max(StatusBar.currentHeight || 28, 28) : 0,
   },
+  mainContainer: {
+    flex: 1,
+    backgroundColor: colors.canvas,
+  },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.md,
     paddingVertical: 12,
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
     borderBottomColor: colors.borderLight,
     height: 52,
@@ -750,47 +1253,134 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   headerTitle: {
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: "700",
     color: colors.ink,
   },
-  stepContainer: {
+  headerTitleSlot: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: colors.ink,
     flex: 1,
-    justifyContent: "space-between",
+    textAlign: "left",
+    marginLeft: 4,
+  },
+  headerCloseBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#F3EDE8",
+    alignItems: "center",
+    justifyContent: "center",
   },
   scroll: {
     flex: 1,
   },
   scrollContent: {
-    padding: spacing.xl,
     paddingBottom: 40,
   },
 
-  // Step 1: Cart Items
+  // Contact Strip
+  contactRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: spacing.lg,
+    paddingVertical: 14,
+    backgroundColor: colors.surface,
+    gap: 10,
+  },
+  contactText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: colors.ink,
+    flex: 1,
+  },
+  contactChangeBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  contactChangeText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: colors.primary,
+  },
+  editContactBox: {
+    backgroundColor: "#FDF7F8",
+    padding: spacing.md,
+    marginHorizontal: spacing.md,
+    marginVertical: spacing.sm,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    gap: 8,
+  },
+  editContactTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: colors.ink,
+  },
+  editContactInput: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.sm,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    fontSize: 13,
+    color: colors.ink,
+  },
+  editContactActions: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: 10,
+    marginTop: 4,
+  },
+  editContactCancelBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  editContactCancelText: {
+    fontSize: 13,
+    color: colors.muted,
+  },
+  editContactSaveBtn: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: radii.sm,
+  },
+  editContactSaveText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: colors.white,
+  },
+
+  sectionDividerThick: {
+    height: 8,
+    backgroundColor: "#F4EFEA",
+  },
+  sectionDividerThin: {
+    height: 1,
+    backgroundColor: "#F0EAE4",
+  },
+
+  // Cart Items
   cartItemList: {
-    gap: spacing.md,
-    marginBottom: spacing.xl,
+    backgroundColor: colors.surface,
+    paddingVertical: spacing.sm,
   },
   cartCard: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: colors.surface,
-    borderRadius: radii.lg,
-    padding: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-    gap: spacing.md,
-    shadowColor: colors.ink,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    gap: 12,
   },
   cartItemThumb: {
-    width: 54,
-    height: 54,
+    width: 52,
+    height: 52,
     borderRadius: radii.md,
-    backgroundColor: "#F3EFEC",
+    backgroundColor: "#F5F0EB",
   },
   cartItemDetails: {
     flex: 1,
@@ -801,88 +1391,61 @@ const styles = StyleSheet.create({
     color: colors.ink,
     lineHeight: 18,
   },
+  cartItemSubTitle: {
+    fontSize: 12,
+    color: colors.muted,
+    marginTop: 2,
+  },
   cartItemPrice: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "800",
-    color: colors.primary,
+    color: colors.ink,
     marginTop: 4,
   },
   cartItemStepper: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: colors.canvasWarm,
+    backgroundColor: "#FAF5F2",
     borderRadius: radii.sm,
-    paddingHorizontal: 4,
-    paddingVertical: 2,
-    gap: 8,
+    borderWidth: 1,
+    borderColor: "#E6DDD6",
+    overflow: "hidden",
   },
   stepperActionBtn: {
-    padding: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
   },
   stepperCount: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: colors.ink,
-  },
-  summaryCard: {
-    backgroundColor: colors.canvasWarm,
-    borderRadius: radii.lg,
-    padding: spacing.lg,
-    gap: spacing.sm,
-  },
-  summaryRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  summaryLabel: {
-    fontSize: 14,
-    color: colors.muted,
-  },
-  summaryValue: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: colors.ink,
-  },
-  summaryDivider: {
-    height: 1,
-    backgroundColor: colors.border,
-    marginVertical: spacing.xs,
-  },
-  summaryTotalLabel: {
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: "800",
-    color: colors.ink,
-  },
-  summaryTotalValue: {
-    fontSize: 16,
-    fontWeight: "900",
     color: colors.primary,
+    paddingHorizontal: 4,
   },
+
   emptyCartBox: {
     alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 60,
+    paddingVertical: 40,
+    paddingHorizontal: spacing.xl,
     gap: spacing.sm,
+    backgroundColor: colors.surface,
   },
   emptyCartTitle: {
     fontSize: 18,
-    fontWeight: "800",
+    fontWeight: "700",
     color: colors.ink,
-    marginTop: spacing.md,
   },
   emptyCartSub: {
     fontSize: 13,
     color: colors.muted,
     textAlign: "center",
-    maxWidth: 260,
+    lineHeight: 18,
   },
   browseServicesBtn: {
-    marginTop: spacing.md,
     backgroundColor: colors.primary,
-    paddingHorizontal: spacing.xl,
-    paddingVertical: 12,
-    borderRadius: 24,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: radii.pill,
+    marginTop: spacing.sm,
   },
   browseServicesBtnText: {
     color: colors.white,
@@ -890,360 +1453,654 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
 
-  // Step 2: Address Selection
-  addressList: {
-    gap: spacing.md,
-    marginBottom: spacing.lg,
-  },
-  addressCard: {
-    flexDirection: "row",
-    alignItems: "center",
+  // Payment Summary
+  paymentSummarySection: {
     backgroundColor: colors.surface,
-    borderRadius: radii.lg,
-    padding: spacing.lg,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-    gap: spacing.md,
-  },
-  addressCardSelected: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primarySoft,
-  },
-  radioCircle: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 2,
-    borderColor: colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  radioInner: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: colors.primary,
-  },
-  addressCardContent: {
-    flex: 1,
-  },
-  addressLabel: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: colors.ink,
-  },
-  addressText: {
-    fontSize: 13,
-    color: colors.muted,
-    marginTop: 2,
-    lineHeight: 18,
-  },
-  addAddressBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.xs,
-    alignSelf: "flex-start",
-    paddingVertical: spacing.sm,
-  },
-  addAddressText: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: colors.primary,
-  },
-  newAddressBox: {
-    backgroundColor: colors.surface,
-    borderRadius: radii.lg,
-    padding: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-    marginTop: spacing.sm,
-    gap: spacing.sm,
-  },
-  newAddressTitle: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: colors.ink,
-  },
-  newAddressInput: {
-    backgroundColor: colors.canvasWarm,
-    borderRadius: radii.md,
-    padding: spacing.md,
-    fontSize: 13,
-    color: colors.ink,
-    minHeight: 60,
-  },
-  newAddressActions: {
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    gap: spacing.sm,
-  },
-  cancelAddressBtn: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: 8,
-  },
-  cancelAddressBtnText: {
-    fontSize: 12,
-    color: colors.muted,
-  },
-  saveAddressBtn: {
-    backgroundColor: colors.primary,
     paddingHorizontal: spacing.lg,
-    paddingVertical: 8,
-    borderRadius: radii.md,
+    paddingVertical: spacing.md,
+    gap: 12,
   },
-  saveAddressBtnText: {
-    color: colors.white,
-    fontSize: 12,
-    fontWeight: "700",
+  paymentSummaryHeading: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: colors.ink,
+    marginBottom: 4,
   },
-
-  // Step 3: Date Picker
-  calendarContainer: {
-    backgroundColor: colors.surface,
-    borderRadius: radii.lg,
-    padding: spacing.lg,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-  },
-  monthHeader: {
+  summaryLineRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: spacing.lg,
   },
-  monthTitle: {
+  summaryLineLabel: {
+    fontSize: 14,
+    color: "#44403C",
+  },
+  taxesAndFeeLabel: {
+    fontSize: 14,
+    color: "#44403C",
+    textDecorationLine: "underline",
+    textDecorationStyle: "dotted",
+  },
+  pricePairRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  strikeMrp: {
+    fontSize: 13,
+    color: colors.subtle,
+    textDecorationLine: "line-through",
+  },
+  summaryLineValue: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: colors.ink,
+  },
+  summaryDividerThin: {
+    height: 1,
+    backgroundColor: "#F0EAE4",
+    marginVertical: 4,
+  },
+  boldTotalLabel: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: colors.ink,
+  },
+  boldTotalValue: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: colors.ink,
+  },
+  boldPayableLabel: {
     fontSize: 16,
     fontWeight: "800",
     color: colors.ink,
   },
-  dayOfWeekRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: spacing.md,
-  },
-  dayOfWeekText: {
-    width: "14.28%",
-    textAlign: "center",
-    fontSize: 12,
-    fontWeight: "600",
-    color: colors.muted,
-  },
-  daysGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    rowGap: 10,
-  },
-  dayCell: {
-    width: "14.28%",
-    height: 38,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  dayCellSelected: {
-    backgroundColor: colors.primary,
-    borderRadius: 19,
-  },
-  dayCellText: {
-    fontSize: 13,
-    fontWeight: "500",
+  boldPayableValue: {
+    fontSize: 16,
+    fontWeight: "900",
     color: colors.ink,
   },
-  dayCellTextSelected: {
-    color: colors.white,
-    fontWeight: "700",
-  },
 
-  // Step 3: Date & Time Single Page
-  datetimeSectionTitle: {
+  // Tip Section
+  tipSection: {
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    gap: 10,
+  },
+  tipHeading: {
     fontSize: 15,
     fontWeight: "800",
     color: colors.ink,
-    marginBottom: spacing.sm,
-    marginTop: spacing.xs,
   },
-  timeSectionHeaderRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginTop: spacing.lg,
-    marginBottom: spacing.xs,
-  },
-  selectedDayBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: colors.primarySoft,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: radii.sm,
-  },
-  selectedDayBadgeText: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: colors.primary,
-  },
-  datetimeSummaryRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 6,
-    paddingHorizontal: spacing.xs,
-  },
-  datetimeSummaryLabel: {
-    fontSize: 12,
-    color: colors.muted,
-  },
-  datetimeSummaryValue: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: colors.primary,
-  },
-  slotsList: {
-    gap: spacing.sm,
-    marginBottom: spacing.lg,
-  },
-  slotCard: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-    borderRadius: radii.md,
-    paddingVertical: 12,
-    paddingHorizontal: spacing.md,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  slotCardSelected: {
-    backgroundColor: colors.primarySoft,
-    borderColor: colors.primary,
-    borderWidth: 1.5,
-  },
-  slotCardLeft: {
+  tipChipsRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
+    marginTop: 4,
   },
-  slotCardText: {
-    fontSize: 14,
-    fontWeight: "600",
+  tipChip: {
+    minWidth: 64,
+    height: 40,
+    borderRadius: radii.md,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: "#E2D9D2",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 12,
+    position: "relative",
+  },
+  tipChipSelected: {
+    borderColor: colors.primary,
+    backgroundColor: "#FDF5F7",
+  },
+  tipChipText: {
+    fontSize: 13,
+    fontWeight: "700",
     color: colors.ink,
   },
-  slotCardTextSelected: {
+  tipChipTextSelected: {
     color: colors.primary,
     fontWeight: "800",
   },
-
-  // Step 5: Payment
-  paymentSummaryBox: {
-    backgroundColor: colors.canvasWarm,
-    borderRadius: radii.lg,
-    padding: spacing.lg,
+  popularTipBadge: {
+    position: "absolute",
+    bottom: -8,
+    backgroundColor: "#DCFCE7",
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 4,
+    borderWidth: 0.5,
+    borderColor: "#86EFAC",
+  },
+  popularTipBadgeText: {
+    fontSize: 8.5,
+    fontWeight: "800",
+    color: "#15803D",
+  },
+  customTipInputRow: {
+    flexDirection: "row",
     alignItems: "center",
-    marginBottom: spacing.xl,
+    gap: 8,
+    marginTop: 6,
   },
-  paymentSummaryLabel: {
+  customTipInput: {
+    flex: 1,
+    height: 38,
+    borderRadius: radii.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 10,
     fontSize: 13,
-    color: colors.muted,
+    backgroundColor: colors.surface,
   },
-  paymentSummaryValue: {
-    fontSize: 26,
-    fontWeight: "900",
-    color: colors.ink,
+  applyTipBtn: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 16,
+    height: 38,
+    borderRadius: radii.sm,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  applyTipBtnText: {
+    color: colors.white,
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  tipDisclaimer: {
+    fontSize: 12,
+    color: colors.muted,
     marginTop: 4,
   },
-  paymentMethodHeading: {
+
+  // Cancellation Section
+  cancellationSection: {
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    gap: 6,
+  },
+  cancellationHeading: {
     fontSize: 15,
     fontWeight: "800",
     color: colors.ink,
-    marginBottom: spacing.md,
   },
-  upiOptionsContainer: {
+  cancellationBody: {
+    fontSize: 13,
+    color: "#57534E",
+    lineHeight: 18,
+  },
+  readPolicyLink: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: colors.ink,
+    textDecorationLine: "underline",
+    marginTop: 2,
+  },
+
+  // Sticky Bottom Bar
+  cartBottomBar: {
     backgroundColor: colors.surface,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-    overflow: "hidden",
+    borderTopWidth: 1,
+    borderTopColor: colors.borderLight,
+    paddingHorizontal: spacing.lg,
+    paddingTop: 10,
+    paddingBottom: 16,
+    gap: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 4,
   },
-  upiOptionRow: {
+  bottomAddressRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 2,
+  },
+  bottomAddressText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: colors.ink,
+    flex: 1,
+  },
+  bottomSlotRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 2,
+  },
+  bottomSlotText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: colors.ink,
+    flex: 1,
+  },
+  brandActionBtn: {
+    backgroundColor: colors.primary,
+    borderRadius: radii.md,
+    height: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 4,
+  },
+  brandActionBtnText: {
+    color: colors.white,
+    fontSize: 16,
+    fontWeight: "800",
+  },
+  legalDisclaimer: {
+    fontSize: 11,
+    color: colors.muted,
+    textAlign: "center",
+    marginTop: 2,
+  },
+
+  // Slot Screen Styles (Image 5)
+  slotScrollContent: {
+    padding: spacing.md,
+    gap: spacing.md,
+    paddingBottom: 40,
+  },
+  arrivalTypeCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.xl,
+    padding: spacing.md,
+    borderWidth: 1.5,
+    borderColor: "#E5DDD5",
+    gap: 12,
+  },
+  arrivalTypeCardSelected: {
+    borderColor: colors.primary,
+  },
+  arrivalCardLeft: {
+    gap: 4,
+    flex: 1,
+  },
+  instantBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#DCFCE7",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    alignSelf: "flex-start",
+  },
+  instantBadgeText: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#15803D",
+  },
+  arrivalCardTitle: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: colors.ink,
+  },
+  arrivalCardSub: {
+    fontSize: 12,
+    color: colors.muted,
+    marginTop: 2,
+  },
+  radioOutline: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    borderColor: "#A8A29E",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  radioDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: colors.primary,
+  },
+  scheduleHeaderRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    padding: spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.borderLight,
   },
-  upiOptionRowSelected: {
-    backgroundColor: colors.primarySoft,
-  },
-  upiLeft: {
+  daysRow: {
     flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
+    gap: 10,
+    marginTop: 14,
   },
-  upiIconCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.primarySoft,
+  dayBox: {
+    flex: 1,
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    borderWidth: 1.5,
+    borderColor: "#E2D9D0",
+    alignItems: "center",
+    paddingVertical: 12,
+    gap: 4,
+  },
+  dayBoxSelected: {
+    borderColor: colors.primary,
+    backgroundColor: "#FDF5F7",
+  },
+  dayBoxLabel: {
+    fontSize: 13,
+    color: "#57534E",
+    fontWeight: "600",
+  },
+  dayBoxLabelSelected: {
+    color: colors.primary,
+    fontWeight: "800",
+  },
+  dayBoxDate: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: colors.ink,
+  },
+  dayBoxDateSelected: {
+    color: colors.primary,
+  },
+  dottedDivider: {
+    height: 1,
+    borderWidth: 0.8,
+    borderColor: "#E5DDD5",
+    borderStyle: "dashed",
+    marginVertical: 14,
+  },
+  startTimeSectionHeading: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: colors.ink,
+    marginBottom: 10,
+  },
+  slotsGrid3Col: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+  slotPill3Col: {
+    width: "31%",
+    height: 42,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: "#E2D9D0",
+    backgroundColor: colors.surface,
     alignItems: "center",
     justifyContent: "center",
   },
-  upiName: {
-    fontSize: 14,
+  slotPill3ColSelected: {
+    borderColor: colors.primary,
+    backgroundColor: "#FDF5F7",
+  },
+  slotPill3ColText: {
+    fontSize: 12.5,
     fontWeight: "600",
     color: colors.ink,
   },
-
-  // Step 6: Confirmation
-  confirmedContent: {
-    alignItems: "center",
-    padding: spacing.xl,
-    paddingTop: 40,
-    gap: spacing.sm,
+  slotPill3ColTextSelected: {
+    color: colors.primary,
+    fontWeight: "800",
   },
-  greenCheckCircle: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
-    backgroundColor: "#16A34A",
+  slotBottomBar: {
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderLight,
+  },
+
+  // Payment Screen Styles (Image 7)
+  paymentHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: spacing.md,
+    paddingVertical: 12,
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderLight,
+  },
+  paymentHeaderTitle: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: colors.ink,
+  },
+  paymentHeaderSub: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: colors.muted,
+    marginTop: 2,
+  },
+  paymentScrollContent: {
+    padding: spacing.md,
+    paddingBottom: 60,
+    gap: spacing.md,
+  },
+  paymentGroupHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 4,
+    marginBottom: 4,
+  },
+  paymentGroupTitle: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: colors.ink,
+  },
+  mostPopularBadge: {
+    backgroundColor: "#DCFCE7",
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  mostPopularBadgeText: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: "#15803D",
+  },
+  paymentGroupTitleStandalone: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: colors.ink,
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  paymentGroupCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.xl,
+    borderWidth: 1,
+    borderColor: "#EAE3DC",
+    overflow: "hidden",
+  },
+  paymentMethodRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: spacing.md,
+    paddingVertical: 14,
+  },
+  paymentMethodLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    flex: 1,
+  },
+  paymentIconSquare: {
+    width: 36,
+    height: 36,
+    borderRadius: radii.md,
+    backgroundColor: "#F3EDE8",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: spacing.md,
-    shadowColor: "#16A34A",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-    elevation: 8,
+  },
+  paymentMethodName: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: colors.ink,
+  },
+  cashbackSub: {
+    fontSize: 11,
+    color: colors.muted,
+    marginTop: 2,
+    maxWidth: 240,
+  },
+  paymentMethodDivider: {
+    height: 1,
+    backgroundColor: "#F2EBE5",
+    marginLeft: 58,
+  },
+  loadingOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(255, 255, 255, 0.8)",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 12,
+  },
+  loadingText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: colors.primary,
+  },
+
+  // Address Modal Box
+  addressModalBackdrop: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.4)",
+    justifyContent: "flex-end",
+  },
+  addressModalBox: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: radii.xl,
+    borderTopRightRadius: radii.xl,
+    padding: spacing.lg,
+    gap: 12,
+  },
+  addressModalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  addressModalTitle: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: colors.ink,
+  },
+  addressChoiceCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F4EFEA",
+  },
+  addressChoiceCardActive: {
+    backgroundColor: "#FAF5F2",
+  },
+  addressChoiceLabel: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: colors.ink,
+  },
+  addressChoiceText: {
+    fontSize: 12,
+    color: colors.muted,
+    marginTop: 1,
+  },
+  addNewAddrBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 8,
+  },
+  addNewAddrBtnText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: colors.primary,
+  },
+  newAddrInput: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.sm,
+    padding: 8,
+    fontSize: 13,
+  },
+  saveNewAddrBtn: {
+    backgroundColor: colors.primary,
+    borderRadius: radii.sm,
+    paddingVertical: 8,
+    alignItems: "center",
+  },
+  saveNewAddrBtnText: {
+    color: colors.white,
+    fontSize: 13,
+    fontWeight: "700",
+  },
+
+  // Confirmed Screen
+  confirmedContent: {
+    padding: spacing.xl,
+    alignItems: "center",
+    gap: spacing.md,
+  },
+  confirmedCheckCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: spacing.xl,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
   confirmedHeading: {
-    fontSize: 24,
-    fontWeight: "800",
+    fontSize: 22,
+    fontWeight: "900",
     color: colors.ink,
   },
   bookingIdText: {
     fontSize: 13,
     fontWeight: "700",
-    color: colors.muted,
-    marginBottom: spacing.lg,
+    color: colors.primary,
+    backgroundColor: "#FDF5F7",
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: radii.pill,
   },
   confirmedDetailsCard: {
     width: "100%",
-    backgroundColor: colors.canvasWarm,
-    borderRadius: radii.lg,
+    backgroundColor: colors.surface,
+    borderRadius: radii.xl,
     padding: spacing.lg,
-    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#EAE3DC",
     gap: 4,
-    marginBottom: spacing.xl,
+    marginTop: spacing.sm,
   },
   confirmedCardLabel: {
     fontSize: 12,
     color: colors.muted,
+    textTransform: "uppercase",
+    fontWeight: "700",
+    letterSpacing: 0.5,
   },
   confirmedCardSchedule: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: "800",
     color: colors.ink,
-    marginTop: 4,
+    marginTop: 2,
   },
   confirmedCardSlot: {
     fontSize: 14,
@@ -1252,53 +2109,42 @@ const styles = StyleSheet.create({
   },
   confirmedCardAddress: {
     fontSize: 13,
-    color: colors.muted,
-    marginTop: 6,
-    textAlign: "center",
+    color: colors.inkSecondary,
+    marginTop: 4,
+    lineHeight: 18,
+  },
+  assignedTechRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: "#F4EFEA",
+  },
+  assignedTechText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: colors.primary,
+    flex: 1,
   },
   confirmedActions: {
     width: "100%",
-    gap: spacing.md,
+    gap: 10,
+    marginTop: spacing.lg,
   },
   secondaryActionBtn: {
-    height: 52,
-    borderRadius: 26,
-    borderWidth: 1.5,
-    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: "#E2D9D0",
+    borderRadius: radii.md,
+    height: 48,
     alignItems: "center",
     justifyContent: "center",
   },
   secondaryActionBtnText: {
     color: colors.ink,
     fontSize: 15,
-    fontWeight: "700",
-  },
-
-  // Bottom Fixed Bar
-  bottomBar: {
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: colors.borderLight,
-    backgroundColor: colors.surface,
-  },
-  pillActionBtn: {
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: colors.primary,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: spacing.sm,
-    shadowColor: colors.primaryDark,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  pillActionBtnText: {
-    color: colors.white,
-    fontSize: 16,
     fontWeight: "700",
   },
 });

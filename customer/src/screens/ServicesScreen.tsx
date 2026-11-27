@@ -907,9 +907,9 @@ const styles = StyleSheet.create({
     borderColor: "#E5DDD5",
   },
   groupTabPillActive: {
-    backgroundColor: "#7C3AED",
-    borderColor: "#7C3AED",
-    shadowColor: "#7C3AED",
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+    shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,

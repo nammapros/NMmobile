@@ -41,7 +41,7 @@ function MainNavigator() {
         styles.safeArea,
         {
           paddingTop: topInset,
-          backgroundColor: activeTab === "home" ? "#7C3AED" : colors.surface,
+          backgroundColor: activeTab === "home" ? colors.primary : colors.surface,
         },
       ]}
     >
