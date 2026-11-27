@@ -31,7 +31,11 @@
     },
     "extra": {
       "apiBaseUrl": "https://nammapros-api-production-177323361322.asia-southeast1.run.app",
-      "fallbackApiBaseUrl": "https://nammapros-api-production-xlexcj72qa-as.a.run.app"
-    }
+      "fallbackApiBaseUrl": "https://nammapros-api-production-xlexcj72qa-as.a.run.app",
+      "eas": {
+        "projectId": "999d1da0-2008-479c-b03e-86fd1ab62053"
+      }
+    },
+    "owner": "xenfirm"
   }
 }
