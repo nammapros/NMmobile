@@ -5,10 +5,13 @@ export const statusBarHeight = Platform.OS === "android" ? (StatusBar.currentHei
 
 export const colors = {
   primary: "#800020",        // NammaPros Burgundy
+  primaryPressed: "#5e0017", // Pressed Burgundy
   primaryDark: "#5e0017",    // Deep Burgundy
-  primarySoft: "#f5ebe8",    // Blush rose tint
-  primaryLight: "#fbf3f2",   // Very subtle tint
+  primarySoft: "#FDF2F4",    // Blush rose tint
+  primaryLight: "#FBF3F2",   // Very subtle tint
 
+  heading: "#1C1917",        // Main heading text
+  body: "#57534E",           // Body text
   ink: "#1C1917",            // Deep Charcoal
   inkSecondary: "#44403C",   // Secondary text
   muted: "#78716C",          // Warm muted gray
@@ -18,18 +21,28 @@ export const colors = {
   canvasWarm: "#F4EFE9",     // Section backgrounds
   surface: "#FFFFFF",        // Card & modal background
   surfaceElevated: "#FFFFFF",
+  background: "#FFFFFF",
   border: "#E8E1DB",         // Lines & borders
   borderLight: "#F0EAE4",
+  tile: "#F5EFEB",           // Light gray/cream tile
+  tileWarm: "#F0ECE7",
 
   gold: "#C8A35B",           // Rating stars & highlights
   goldBg: "#FEF9EE",
+  accent: "#C8A35B",
+  accentSoft: "#FFF8EB",
 
   success: "#166534",        // Green
+  successSoft: "#E7F3EC",
   successBg: "#E7F3EC",
   warning: "#854D0E",        // Amber
+  warningSoft: "#FFF4E5",
   warningBg: "#FFF4E5",
   error: "#9F1239",          // Rose error
+  errorSoft: "#FDECEA",
   errorBg: "#FDECEA",
+  danger: "#9F1239",
+  dangerSoft: "#FDECEA",
 
   white: "#FFFFFF",
   black: "#000000",
@@ -52,6 +65,14 @@ export const radii = {
   lg: 12,
   xl: 16,
   pill: 9999,
+};
+
+export const radius = {
+  small: 8,
+  button: 10,
+  card: 12,
+  sheet: 24,
+  pill: 999,
 };
 
 export const typography = {

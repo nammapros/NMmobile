@@ -41,6 +41,7 @@ export function AccountScreen() {
   const [showPaymentMethodsModal, setShowPaymentMethodsModal] = useState(false);
   const [showBackendModal, setShowBackendModal] = useState(false);
   const [showAboutModal, setShowAboutModal] = useState(false);
+  const [language, setLanguage] = useState<"en" | "ta">("en");
 
   // Developer ping state
   const [pingLatency, setPingLatency] = useState<number | null>(null);
@@ -136,7 +137,38 @@ export function AccountScreen() {
           )}
         </View>
 
-        {/* Menu Items matching Mockup */}
+        {/* Language Selector (from ps-mobile) */}
+        <View style={styles.languageCard}>
+          <View>
+            <Text style={styles.languageTitle}>Language</Text>
+            <Text style={styles.languageHint}>English / தமிழ்</Text>
+          </View>
+          <View style={styles.languageButtons}>
+            <Pressable
+              onPress={() => setLanguage("en")}
+              style={[styles.langBtn, language === "en" && styles.langBtnActive]}
+              accessibilityRole="button"
+              accessibilityLabel="English"
+            >
+              <Text style={[styles.langBtnText, language === "en" && styles.langBtnTextActive]}>
+                EN
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => setLanguage("ta")}
+              style={[styles.langBtn, language === "ta" && styles.langBtnActive]}
+              accessibilityRole="button"
+              accessibilityLabel="Tamil"
+            >
+              <Text style={[styles.langBtnText, language === "ta" && styles.langBtnTextActive]}>
+                தமிழ்
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+
+        {/* Section 1: My Account */}
+        <Text style={styles.groupSectionHeader}>MY ACCOUNT</Text>
         <View style={styles.menuContainer}>
           {/* 1. My Bookings */}
           <Pressable
@@ -147,7 +179,7 @@ export function AccountScreen() {
           >
             <View style={styles.menuItemLeft}>
               <View style={styles.menuIconCircle}>
-                <Ionicons name="calendar" size={18} color={colors.primary} />
+                <Ionicons name="calendar-outline" size={18} color={colors.primary} />
               </View>
               <Text style={styles.menuItemText}>My Bookings</Text>
             </View>
@@ -163,7 +195,7 @@ export function AccountScreen() {
           >
             <View style={styles.menuItemLeft}>
               <View style={styles.menuIconCircle}>
-                <Ionicons name="location" size={18} color={colors.primary} />
+                <Ionicons name="location-outline" size={18} color={colors.primary} />
               </View>
               <Text style={styles.menuItemText}>Saved Addresses</Text>
             </View>
@@ -179,30 +211,70 @@ export function AccountScreen() {
           >
             <View style={styles.menuItemLeft}>
               <View style={styles.menuIconCircle}>
-                <Ionicons name="card" size={18} color={colors.primary} />
+                <Ionicons name="card-outline" size={18} color={colors.primary} />
               </View>
               <Text style={styles.menuItemText}>Payment Methods</Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color={colors.muted} />
           </Pressable>
+        </View>
 
-          {/* 4. Help & Support */}
+        {/* Section 2: Support & Assistance */}
+        <Text style={styles.groupSectionHeader}>SUPPORT &amp; ASSISTANCE</Text>
+        <View style={styles.menuContainer}>
+          {/* WhatsApp Support */}
           <Pressable
-            onPress={() => setIsHelpModalOpen(true)}
+            onPress={() => Linking.openURL("https://wa.me/917676076361?text=Hi%20NammaPros%20Support")}
             style={styles.menuItem}
             accessibilityRole="button"
-            accessibilityLabel="Help & Support"
+            accessibilityLabel="WhatsApp Support"
           >
             <View style={styles.menuItemLeft}>
-              <View style={styles.menuIconCircle}>
-                <Ionicons name="help-circle" size={18} color={colors.primary} />
+              <View style={[styles.menuIconCircle, { backgroundColor: "#E6F7ED" }]}>
+                <Ionicons name="logo-whatsapp" size={18} color="#1B7F43" />
               </View>
-              <Text style={styles.menuItemText}>Help &amp; Support</Text>
+              <Text style={styles.menuItemText}>WhatsApp Support</Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color={colors.muted} />
           </Pressable>
 
-          {/* 5. About Namma Pros */}
+          {/* Call Support */}
+          <Pressable
+            onPress={() => Linking.openURL("tel:+917676076361")}
+            style={styles.menuItem}
+            accessibilityRole="button"
+            accessibilityLabel="Call Support"
+          >
+            <View style={styles.menuItemLeft}>
+              <View style={styles.menuIconCircle}>
+                <Ionicons name="call-outline" size={18} color={colors.primary} />
+              </View>
+              <Text style={styles.menuItemText}>Call Support (+91 76760 76361)</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.muted} />
+          </Pressable>
+
+          {/* Help & FAQs */}
+          <Pressable
+            onPress={() => setIsHelpModalOpen(true)}
+            style={styles.menuItem}
+            accessibilityRole="button"
+            accessibilityLabel="Frequently Asked Questions"
+          >
+            <View style={styles.menuItemLeft}>
+              <View style={styles.menuIconCircle}>
+                <Ionicons name="help-circle-outline" size={18} color={colors.primary} />
+              </View>
+              <Text style={styles.menuItemText}>Frequently Asked Questions</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.muted} />
+          </Pressable>
+        </View>
+
+        {/* Section 3: Legal & Information */}
+        <Text style={styles.groupSectionHeader}>LEGAL &amp; INFORMATION</Text>
+        <View style={styles.menuContainer}>
+          {/* About Namma Pros */}
           <Pressable
             onPress={() => setShowAboutModal(true)}
             style={styles.menuItem}
@@ -211,30 +283,62 @@ export function AccountScreen() {
           >
             <View style={styles.menuItemLeft}>
               <View style={styles.menuIconCircle}>
-                <Ionicons name="information-circle" size={18} color={colors.primary} />
+                <Ionicons name="information-circle-outline" size={18} color={colors.primary} />
               </View>
               <Text style={styles.menuItemText}>About Namma Pros</Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color={colors.muted} />
           </Pressable>
 
-          {/* 6. View Welcome Flow */}
+          {/* Privacy Policy */}
           <Pressable
-            onPress={() => setIsIntroOpen(true)}
+            onPress={() => Alert.alert("Privacy Policy", "NammaPros respects your privacy. We never sell your personal information or phone number to third parties. All booking information is encrypted.")}
             style={styles.menuItem}
             accessibilityRole="button"
-            accessibilityLabel="View Welcome Flow"
+            accessibilityLabel="Privacy Policy"
           >
             <View style={styles.menuItemLeft}>
               <View style={styles.menuIconCircle}>
-                <Ionicons name="sparkles" size={18} color={colors.primary} />
+                <Ionicons name="shield-checkmark-outline" size={18} color={colors.primary} />
               </View>
-              <Text style={styles.menuItemText}>View Welcome Flow</Text>
+              <Text style={styles.menuItemText}>Privacy Policy</Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color={colors.muted} />
           </Pressable>
 
-          {/* 7. Backend & API Settings */}
+          {/* Terms & Conditions */}
+          <Pressable
+            onPress={() => Alert.alert("Terms & Conditions", "All home services booked on NammaPros include verified technicians, upfront transparent pricing, and our 30-Day Free Rework Guarantee.")}
+            style={styles.menuItem}
+            accessibilityRole="button"
+            accessibilityLabel="Terms and Conditions"
+          >
+            <View style={styles.menuItemLeft}>
+              <View style={styles.menuIconCircle}>
+                <Ionicons name="document-text-outline" size={18} color={colors.primary} />
+              </View>
+              <Text style={styles.menuItemText}>Terms and Conditions</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.muted} />
+          </Pressable>
+
+          {/* Cancellation & Refund */}
+          <Pressable
+            onPress={() => Alert.alert("Cancellation & Refund Policy", "Free cancellation up to 2 hours prior to scheduled visit. 100% instant refund on prepaid bookings upon cancellation.")}
+            style={styles.menuItem}
+            accessibilityRole="button"
+            accessibilityLabel="Cancellation and Refund Policy"
+          >
+            <View style={styles.menuItemLeft}>
+              <View style={styles.menuIconCircle}>
+                <Ionicons name="receipt-outline" size={18} color={colors.primary} />
+              </View>
+              <Text style={styles.menuItemText}>Cancellation &amp; Refund Policy</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.muted} />
+          </Pressable>
+
+          {/* Backend & API Settings */}
           <Pressable
             onPress={() => setShowBackendModal(true)}
             style={styles.menuItem}
@@ -243,13 +347,30 @@ export function AccountScreen() {
           >
             <View style={styles.menuItemLeft}>
               <View style={styles.menuIconCircle}>
-                <Ionicons name="server" size={18} color={colors.primary} />
+                <Ionicons name="server-outline" size={18} color={colors.primary} />
               </View>
               <Text style={styles.menuItemText}>Backend &amp; API Settings</Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color={colors.muted} />
           </Pressable>
         </View>
+
+        {/* Secondary Sign Out Button matching ps-mobile */}
+        {Boolean(user) && (
+          <Pressable
+            onPress={() => {
+              Alert.alert("Sign Out", "Are you sure you want to sign out?", [
+                { text: "Cancel", style: "cancel" },
+                { text: "Sign Out", style: "destructive", onPress: signOut },
+              ]);
+            }}
+            style={styles.signOutFullBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Sign out"
+          >
+            <Text style={styles.signOutFullBtnText}>Sign out</Text>
+          </Pressable>
+        )}
 
         {/* Brand Version */}
         <View style={styles.versionFooter}>
@@ -552,12 +673,74 @@ const styles = StyleSheet.create({
     padding: spacing.sm,
   },
 
+  // Language Card from ps-mobile
+  languageCard: {
+    minHeight: 66,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.md,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: "#E8E1DB",
+    borderRadius: radii.xl,
+    backgroundColor: colors.surface,
+  },
+  languageTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: colors.ink,
+  },
+  languageHint: {
+    marginTop: 2,
+    fontSize: 11,
+    color: colors.muted,
+  },
+  languageButtons: {
+    flexDirection: "row",
+    gap: 6,
+  },
+  langBtn: {
+    minHeight: 34,
+    minWidth: 42,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    borderRadius: radii.sm,
+    backgroundColor: "#F5F2EF",
+    borderWidth: 1,
+    borderColor: "#E5DDD5",
+  },
+  langBtnActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  langBtnText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: colors.ink,
+  },
+  langBtnTextActive: {
+    color: colors.white,
+  },
+
+  // Section Group Headers
+  groupSectionHeader: {
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 0.8,
+    color: colors.muted,
+    marginBottom: -4,
+    marginTop: 4,
+    paddingHorizontal: 2,
+  },
+
   // Menu List
   menuContainer: {
     backgroundColor: colors.surface,
     borderRadius: radii.xl,
     borderWidth: 1,
-    borderColor: colors.borderLight,
+    borderColor: "#E8E1DB",
     overflow: "hidden",
   },
   menuItem: {
@@ -586,6 +769,23 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "600",
     color: colors.ink,
+  },
+
+  // Secondary Sign Out Button from ps-mobile
+  signOutFullBtn: {
+    minHeight: 48,
+    borderRadius: radii.lg,
+    borderWidth: 1.5,
+    borderColor: "#E5DDD5",
+    backgroundColor: colors.surface,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: spacing.xs,
+  },
+  signOutFullBtnText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: colors.primary,
   },
 
   versionFooter: {

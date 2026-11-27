@@ -271,49 +271,65 @@ export function BookingsScreen() {
             </Pressable>
           </View>
         ) : (
-          displayedList.map((booking) => (
-            <Pressable
-              key={booking.id}
-              onPress={() => handleBookingCardPress(booking)}
-              style={styles.bookingCard}
-              accessibilityRole="button"
-              accessibilityLabel={booking.service_name || booking.service}
-            >
-              <Image
-                source={getBookingThumb(booking.service_name || booking.service)}
-                style={styles.bookingThumb}
-                resizeMode="cover"
-                fadeDuration={0}
-              />
-              <View style={styles.bookingCardDetails}>
-                <View style={styles.bookingTopRow}>
-                  <Text style={styles.bookingServiceTitle} numberOfLines={2}>
-                    {booking.service_name || booking.service}
-                  </Text>
-                  <View style={styles.confirmedBadge}>
-                    <Text style={styles.confirmedBadgeText}>
-                      {booking.status === "COMPLETED" ? "Completed" : "Confirmed"}
+          displayedList.map((booking) => {
+            const isCompleted = ["COMPLETED", "CANCELLED"].includes(booking.status);
+            const statusLabel = isCompleted
+              ? booking.status === "CANCELLED" ? "CANCELLED" : "COMPLETED"
+              : booking.technician?.status === "ON_THE_WAY" ? "ON THE WAY" : "CONFIRMED";
+            const techName = booking.technician?.display_name || booking.technician?.name || "Technician Assigned";
+            const slotText = `${booking.scheduled_date || "Wed, 18 Nov 2026"} · ${booking.scheduled_slot || "2:00 PM - 4:00 PM"}`;
+            const priceText = formatInr(booking.total_amount_paise ?? booking.price?.total_paise ?? 19900);
+
+            return (
+              <Pressable
+                key={booking.id}
+                onPress={() => handleBookingCardPress(booking)}
+                style={({ pressed }) => [styles.bookingCard, pressed && { opacity: 0.75 }]}
+                accessibilityRole="button"
+                accessibilityLabel={`${booking.service_name || booking.service}, ${statusLabel}`}
+              >
+                <Image
+                  source={getBookingThumb(booking.service_name || booking.service)}
+                  style={styles.bookingThumb}
+                  resizeMode="cover"
+                  fadeDuration={0}
+                />
+                <View style={styles.bookingCardDetails}>
+                  <View style={[styles.statusPill, isCompleted ? styles.statusPillClosed : styles.statusPillOpen]}>
+                    <Text style={[styles.statusPillText, isCompleted ? styles.statusPillTextClosed : styles.statusPillTextOpen]}>
+                      {statusLabel}
                     </Text>
                   </View>
-                </View>
 
-                <Text style={styles.bookingSlotText}>
-                  {booking.scheduled_date || "Wed, 18 Nov 2026"}
-                  {booking.scheduled_slot ? ` • ${booking.scheduled_slot}` : ""}
-                </Text>
-
-                <View style={styles.bookingCardFooter}>
-                  <Text style={styles.bookingPrice}>
-                    {formatInr(booking.total_amount_paise ?? booking.price?.total_paise ?? 19900)}
+                  <Text style={styles.bookingServiceTitle} numberOfLines={1}>
+                    {booking.service_name || booking.service}
                   </Text>
-                  <View style={styles.trackActionRow}>
-                    <Text style={styles.trackActionText}>View Details</Text>
-                    <Ionicons name="chevron-forward" size={14} color={colors.primary} />
+
+                  <View style={styles.bookingMetaRow}>
+                    <Ionicons name="person-outline" size={13} color={colors.muted} />
+                    <Text style={styles.bookingMetaText} numberOfLines={1}>
+                      {techName}
+                    </Text>
+                  </View>
+
+                  <View style={styles.bookingMetaRow}>
+                    <Ionicons name="calendar-outline" size={13} color={colors.muted} />
+                    <Text style={styles.bookingMetaText} numberOfLines={1}>
+                      {slotText}
+                    </Text>
+                  </View>
+
+                  <View style={styles.bookingCardFooter}>
+                    <Text style={styles.bookingPrice}>{priceText}</Text>
+                    <View style={styles.trackActionRow}>
+                      <Text style={styles.trackActionText}>Track & Details</Text>
+                      <Ionicons name="chevron-forward" size={14} color={colors.primary} />
+                    </View>
                   </View>
                 </View>
-              </View>
-            </Pressable>
-          ))
+              </Pressable>
+            );
+          })
         )}
       </ScrollView>
 
@@ -592,58 +608,71 @@ const styles = StyleSheet.create({
     borderRadius: radii.lg,
     padding: spacing.md,
     borderWidth: 1,
-    borderColor: colors.borderLight,
+    borderColor: "#E8E1DB",
     gap: spacing.md,
     shadowColor: colors.ink,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 5,
+    elevation: 2,
   },
   bookingThumb: {
-    width: 65,
-    height: 65,
+    width: 76,
+    height: 76,
     borderRadius: radii.md,
-    backgroundColor: colors.canvasWarm,
+    backgroundColor: "#F4EBE3",
   },
   bookingCardDetails: {
     flex: 1,
-    justifyContent: "space-between",
+    gap: 4,
+    justifyContent: "center",
   },
-  bookingTopRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-    gap: spacing.xs,
-  },
-  bookingServiceTitle: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: colors.ink,
-    flex: 1,
-    lineHeight: 18,
-  },
-  confirmedBadge: {
-    backgroundColor: colors.successBg,
+  statusPill: {
+    alignSelf: "flex-start",
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: radii.sm,
+    borderRadius: radii.pill,
+    marginBottom: 2,
   },
-  confirmedBadgeText: {
+  statusPillOpen: {
+    backgroundColor: "#E6F7ED",
+  },
+  statusPillClosed: {
+    backgroundColor: "#FDF2F4",
+  },
+  statusPillText: {
     fontSize: 10,
     fontWeight: "800",
-    color: colors.success,
+    letterSpacing: 0.4,
   },
-  bookingSlotText: {
+  statusPillTextOpen: {
+    color: "#1B7F43",
+  },
+  statusPillTextClosed: {
+    color: colors.primary,
+  },
+  bookingServiceTitle: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: colors.ink,
+    letterSpacing: -0.1,
+  },
+  bookingMetaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+  },
+  bookingMetaText: {
     fontSize: 12,
     color: colors.muted,
-    marginVertical: 4,
+    flex: 1,
+    fontWeight: "500",
   },
   bookingCardFooter: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginTop: 2,
+    marginTop: 4,
   },
   bookingPrice: {
     fontSize: 14,

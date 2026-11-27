@@ -1,22 +1,85 @@
 import { Ionicons } from "@expo/vector-icons";
-import React from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
+  Dimensions,
   Image,
+  Keyboard,
   Pressable,
   RefreshControl,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
-import { BrandAssets, CategoryCardAssets, HomeIconAssets, ServiceBannerAssets, SpotlightAssets } from "../assets";
+import {
+  BrandAssets,
+  CategoryCardAssets,
+  HomeIconAssets,
+  ServiceBannerAssets,
+  SpotlightAssets,
+  getServiceListImage,
+} from "../assets";
+import { formatInr } from "../components/ServiceCard";
 import { useApp } from "../state/AppContext";
-import { colors, radii, spacing } from "../theme";
+import { colors, radii, radius, spacing } from "../theme";
+import type { Service } from "../types";
 
 // ============================================================================
 // STATIC DATA: Module-level singletons for 0ms instant render & zero re-allocations
 // ============================================================================
+const POPULAR_SEARCHES = [
+  "AC service",
+  "Washing machine",
+  "Fridge repair",
+  "Water tank cleaning",
+  "Sofa repair",
+  "Electrician",
+  "Plumber",
+  "Deep house cleaning",
+];
+
+const PROMO_CAROUSEL_SLIDES = [
+  {
+    id: "ac-summer",
+    title: "AC Deep Cleaning & Gas Refill",
+    subtitle: "Starts at ₹499 • Verified experts",
+    cta: "Book now",
+    categorySlug: "ac",
+    image: ServiceBannerAssets.ac,
+    badge: "RECOMMENDED",
+  },
+  {
+    id: "tank-clean",
+    title: "Water Tank 6-Stage UV Sanitizing",
+    subtitle: "Starts at ₹799 • 100% sludge removal",
+    cta: "Book now",
+    categorySlug: "water-tank-cleaning",
+    image: ServiceBannerAssets["water-tank-cleaning"],
+    badge: "POPULAR",
+  },
+  {
+    id: "appliances",
+    title: "Appliance Quick Repair & Fix",
+    subtitle: "Starts at ₹299 • Washing Machine, Fridge",
+    cta: "Book now",
+    categorySlug: "appliances",
+    image: ServiceBannerAssets.appliances,
+    badge: "SAME DAY",
+  },
+  {
+    id: "sofa-deep",
+    title: "Sofa Spa & Upholstery Care",
+    subtitle: "Starts at ₹499 • Deep stain removal",
+    cta: "Book now",
+    categorySlug: "sofa",
+    image: ServiceBannerAssets.sofa,
+    badge: "TRENDING",
+  },
+];
+
 const HOME_CATEGORIES = [
   {
     key: "cleaning",
@@ -135,6 +198,10 @@ const NEW_AND_NOTEWORTHY = [
   },
 ];
 
+const BANNER_WIDTH = Dimensions.get("window").width - spacing.lg * 2;
+const BANNER_HEIGHT = Math.round(BANNER_WIDTH * 0.44);
+const PRODUCT_CARD_WIDTH = Math.min(Dimensions.get("window").width * 0.4, 160);
+
 export function HomeScreen() {
   const {
     catalog,
@@ -150,7 +217,41 @@ export function HomeScreen() {
     setIsAuthOpen,
     user,
     savedAddresses,
+    cartItemCount,
+    cartItems,
+    addToCart,
+    updateQuantity,
+    setIsCartOpen,
   } = useApp();
+
+  const [hintIndex, setHintIndex] = useState(0);
+  const [searchFocused, setSearchFocused] = useState(false);
+  const [localSearch, setLocalSearch] = useState("");
+  const [activeSlide, setActiveSlide] = useState(0);
+  const bannerScrollRef = useRef<any>(null);
+
+  // Rotating search placeholder hint every 2.5s (matching ps-mobile)
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setHintIndex((prev) => (prev + 1) % POPULAR_SEARCHES.length);
+    }, 2500);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Auto-advancing banner carousel every 4s (matching ps-mobile)
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setActiveSlide((prev) => {
+        const next = (prev + 1) % PROMO_CAROUSEL_SLIDES.length;
+        bannerScrollRef.current?.scrollTo({
+          x: next * (BANNER_WIDTH + spacing.md),
+          animated: true,
+        });
+        return next;
+      });
+    }, 4000);
+    return () => clearInterval(timer);
+  }, []);
 
   const activeAddressLine =
     savedAddresses && savedAddresses.length > 0
@@ -159,19 +260,23 @@ export function HomeScreen() {
 
   const handleQuickSearch = (query: string) => {
     setSearchQuery(query);
+    setSearchFocused(false);
+    Keyboard.dismiss();
     setActiveTab("services");
   };
 
   const handleSelectCategory = (catSlug: string) => {
     setSelectedCategorySlug(catSlug);
     setSearchQuery("");
+    setSearchFocused(false);
+    Keyboard.dismiss();
     setActiveTab("services");
   };
 
   const handleWalletPress = () => {
     Alert.alert(
       "NammaPros Wallet",
-      "Current Wallet Balance: ₹0\n\nEarn 10% cashback on your next home service booking!"
+      "Current Wallet Balance: ₹0\n\nEarn ₹100 cashback on your next home service booking!"
     );
   };
 
@@ -182,6 +287,26 @@ export function HomeScreen() {
       setIsAuthOpen(true);
     }
   };
+
+  const handleShareApp = async () => {
+    try {
+      await Share.share({
+        title: "NammaPros - Home Services at Your Doorstep",
+        message:
+          "Book trusted electricians, plumbers, AC repair, water tank cleaning, and appliances with NammaPros! Get ₹100 cashback using my link: https://nammapros.com",
+      });
+    } catch {}
+  };
+
+  // Most booked services from catalog
+  const services = catalog?.services || [];
+  const mostBooked = useMemo(() => {
+    const popular = services.filter((s) => s.is_popular || s.is_featured);
+    if (popular.length >= 4) return popular.slice(0, 8);
+    return services.slice(0, 8);
+  }, [services]);
+
+  const showSearchPanel = searchFocused || localSearch.trim().length > 0;
 
   return (
     <ScrollView
@@ -196,29 +321,30 @@ export function HomeScreen() {
         />
       }
       showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
     >
       {/* ========================================================
-          1. NAMMAPROS BURGUNDY HERO HEADER (MATCHING REFERENCE)
+          1. NAMMAPROS BURGUNDY HERO HEADER WITH PS-MOBILE TOPBAR
           ======================================================== */}
       <View style={styles.brandHeaderContainer}>
-        {/* Top Line: "In 29 mins" / Location Dropdown + Wallet & Profile */}
+        {/* Top Line: Location Dropdown + Wallet + Cart + Profile Buttons */}
         <View style={styles.headerTopRow}>
-          <View style={styles.headerLocationWrap}>
-            <Text style={styles.etaHeading}>In 29 mins</Text>
-            <Pressable
-              onPress={() => setIsLocationModalOpen(true)}
-              style={styles.locationDropdownBtn}
-              accessibilityRole="button"
-              accessibilityLabel={`Current location: ${activeAddressLine}`}
-            >
-              <Text style={styles.locationDropdownText} numberOfLines={1}>
-                Home - {activeAddressLine}
-              </Text>
-              <Ionicons name="chevron-down" size={14} color={colors.white} />
-            </Pressable>
-          </View>
+          <Pressable
+            onPress={() => setIsLocationModalOpen(true)}
+            style={styles.headerLocationWrap}
+            accessibilityRole="button"
+            accessibilityLabel={`Current location: ${activeAddressLine}`}
+          >
+            <View style={styles.locationTitleRow}>
+              <Text style={styles.etaHeading}>In 29 mins</Text>
+              <Ionicons name="chevron-down" size={15} color={colors.white} />
+            </View>
+            <Text style={styles.locationDropdownText} numberOfLines={1}>
+              Home - {activeAddressLine}
+            </Text>
+          </Pressable>
 
-          {/* Right Action Icons: Wallet & Profile */}
+          {/* Right Action Icons: Wallet, Round Cart, Round Profile */}
           <View style={styles.headerRightActions}>
             <Pressable
               onPress={handleWalletPress}
@@ -226,57 +352,94 @@ export function HomeScreen() {
               accessibilityRole="button"
               accessibilityLabel="Wallet Balance"
             >
-              <Ionicons name="wallet" size={16} color={colors.primary} />
+              <Ionicons name="wallet" size={14} color={colors.primary} />
               <Text style={styles.walletPillText}>₹0</Text>
             </Pressable>
 
             <Pressable
+              onPress={() => setIsCartOpen(true)}
+              style={styles.roundHeaderBtn}
+              accessibilityRole="button"
+              accessibilityLabel="Open Cart"
+            >
+              <Ionicons name="cart-outline" size={18} color={colors.heading} />
+              {Boolean(cartItemCount > 0) && (
+                <View style={styles.cartBadge}>
+                  <Text style={styles.cartBadgeText}>
+                    {cartItemCount > 9 ? "9+" : cartItemCount}
+                  </Text>
+                </View>
+              )}
+            </Pressable>
+
+            <Pressable
               onPress={handleProfilePress}
-              style={styles.profileAvatarCircle}
+              style={styles.roundHeaderBtn}
               accessibilityRole="button"
               accessibilityLabel="User Profile"
             >
-              <Ionicons name="person" size={18} color={colors.primary} />
+              <Ionicons name="person-outline" size={18} color={colors.heading} />
             </Pressable>
           </View>
         </View>
 
-        {/* Search Bar Input (White Pill matching Image 1) */}
-        <Pressable
-          onPress={() => handleQuickSearch("")}
-          style={styles.searchBarPill}
-          accessibilityRole="button"
-          accessibilityLabel="Search for a service"
-        >
-          <Ionicons name="search" size={20} color="#78716C" />
-          <Text style={styles.searchBarPillPlaceholder}>Search for a service</Text>
-        </Pressable>
+        {/* Search Bar with Rotating Placeholder Hint (matching ps-mobile) */}
+        <View style={[styles.searchBarPill, showSearchPanel && styles.searchBarPillActive]}>
+          <Ionicons name="search" size={18} color={colors.muted} />
+          <TextInput
+            value={localSearch}
+            onChangeText={setLocalSearch}
+            onFocus={() => setSearchFocused(true)}
+            placeholder={`Search for ‘${POPULAR_SEARCHES[hintIndex]}’`}
+            placeholderTextColor="#78716C"
+            style={styles.searchInput}
+            returnKeyType="search"
+            onSubmitEditing={() => {
+              if (localSearch.trim()) {
+                handleQuickSearch(localSearch.trim());
+              }
+            }}
+          />
+          {Boolean(localSearch.length > 0) ? (
+            <Pressable
+              onPress={() => setLocalSearch("")}
+              hitSlop={10}
+              accessibilityLabel="Clear search"
+            >
+              <Ionicons name="close-circle" size={18} color={colors.muted} />
+            </Pressable>
+          ) : null}
+        </View>
 
-        {/* Promo Pack Banner matching Image 1 */}
-        <Pressable
-          onPress={() => handleSelectCategory("cleaning")}
-          style={styles.promoPackBanner}
-          accessibilityRole="button"
-          accessibilityLabel="3-visit pack at just ₹215"
-        >
-          <View style={styles.promoPackLeft}>
-            <Text style={styles.promoBrand}>Instahelp by NammaPros</Text>
-            <Text style={styles.promoTitle}>3-visit pack at just ₹215</Text>
-            <Text style={styles.promoSub}>₹33/visit</Text>
-            <View style={styles.promoDiscountBadge}>
-              <Text style={styles.promoDiscountText}>🏷 85% OFF</Text>
+        {/* Dropdown Search Suggestions Panel (matching ps-mobile) */}
+        {showSearchPanel && (
+          <View style={styles.searchPanelWrap}>
+            <View style={styles.panelHeaderRow}>
+              <Text style={styles.panelTitle}>Popular Searches</Text>
+              <Pressable
+                onPress={() => {
+                  setSearchFocused(false);
+                  setLocalSearch("");
+                  Keyboard.dismiss();
+                }}
+              >
+                <Text style={styles.panelCloseText}>Done</Text>
+              </Pressable>
+            </View>
+            <View style={styles.chipsWrap}>
+              {POPULAR_SEARCHES.map((query) => (
+                <Pressable
+                  key={query}
+                  onPress={() => handleQuickSearch(query)}
+                  style={styles.searchChip}
+                >
+                  <Ionicons name="trending-up" size={13} color={colors.primary} />
+                  <Text style={styles.searchChipText}>{query}</Text>
+                </Pressable>
+              ))}
             </View>
           </View>
-
-          <View style={styles.promoPackRight}>
-            <Image
-              source={BrandAssets.technicianCutout}
-              style={styles.promoTechnicianImg}
-              resizeMode="contain"
-              fadeDuration={0}
-            />
-          </View>
-        </Pressable>
+        )}
       </View>
 
       {/* ========================================================
@@ -313,7 +476,70 @@ export function HomeScreen() {
       )}
 
       {/* ========================================================
-          2. 4-COLUMN CATEGORY GRID (DIRECT ICONS WITHOUT ANY BOX)
+          2. AUTO-SCROLLING PROMO BANNER CAROUSEL (FROM PS-MOBILE)
+          ======================================================== */}
+      <View style={styles.carouselContainer}>
+        <ScrollView
+          ref={bannerScrollRef}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          snapToInterval={BANNER_WIDTH + spacing.md}
+          decelerationRate="fast"
+          contentContainerStyle={styles.carouselRow}
+          onMomentumScrollEnd={(event) =>
+            setActiveSlide(
+              Math.round(event.nativeEvent.contentOffset.x / (BANNER_WIDTH + spacing.md))
+            )
+          }
+        >
+          {PROMO_CAROUSEL_SLIDES.map((slide) => (
+            <Pressable
+              key={slide.id}
+              onPress={() => handleSelectCategory(slide.categorySlug)}
+              style={({ pressed }) => [styles.bannerSlide, pressed && styles.pressed]}
+              accessibilityRole="button"
+              accessibilityLabel={slide.title}
+            >
+              <Image
+                source={slide.image}
+                style={StyleSheet.absoluteFill}
+                resizeMode="cover"
+                fadeDuration={0}
+              />
+              <View style={styles.bannerOverlay}>
+                <View style={styles.bannerBadgePill}>
+                  <Text style={styles.bannerBadgeText}>{slide.badge}</Text>
+                </View>
+                <Text style={styles.bannerTitle} numberOfLines={2}>
+                  {slide.title}
+                </Text>
+                <Text style={styles.bannerSub} numberOfLines={1}>
+                  {slide.subtitle}
+                </Text>
+                <View style={styles.bannerCtaPill}>
+                  <Text style={styles.bannerCtaText}>{slide.cta}</Text>
+                  <Ionicons name="arrow-forward" size={12} color={colors.heading} />
+                </View>
+              </View>
+            </Pressable>
+          ))}
+        </ScrollView>
+        {/* Carousel Indicator Dots */}
+        <View style={styles.carouselDotsRow}>
+          {PROMO_CAROUSEL_SLIDES.map((slide, idx) => (
+            <View
+              key={slide.id}
+              style={[
+                styles.carouselDot,
+                idx === activeSlide && styles.carouselDotActive,
+              ]}
+            />
+          ))}
+        </View>
+      </View>
+
+      {/* ========================================================
+          3. 4-COLUMN CATEGORY GRID (DIRECT ICONS WITHOUT BOX)
           ======================================================== */}
       <View style={styles.categoryGridSection}>
         <View style={styles.categoryGrid4Col}>
@@ -350,7 +576,94 @@ export function HomeScreen() {
       </View>
 
       {/* ========================================================
-          3. NATIVE SMART PRODUCTS SECTION (MATCHING IMAGE 1)
+          4. MOST BOOKED SERVICES HORIZONTAL ROW (FROM PS-MOBILE)
+          ======================================================== */}
+      {mostBooked.length > 0 && (
+        <View style={styles.sectionWrap}>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionHeading}>Most Booked Services</Text>
+            <Pressable onPress={() => setActiveTab("services")}>
+              <Text style={styles.sectionActionText}>See all</Text>
+            </Pressable>
+          </View>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.productCardScroll}
+          >
+            {mostBooked.map((service) => {
+              const inCart = cartItems.find((i) => i.service.id === service.id);
+              const defaultPkg = service.packages?.[0];
+              const price = defaultPkg?.price_paise ?? service.starting_price_paise ?? 49900;
+
+              return (
+                <Pressable
+                  key={service.id}
+                  onPress={() => setDetailService(service)}
+                  style={({ pressed }) => [styles.productCard, pressed && styles.pressed]}
+                  accessibilityRole="button"
+                  accessibilityLabel={service.name}
+                >
+                  <View style={styles.productCardImgWrap}>
+                    <Image
+                      source={getServiceListImage(service)}
+                      style={styles.productCardImg}
+                      resizeMode="cover"
+                      fadeDuration={0}
+                    />
+                  </View>
+                  <Text numberOfLines={2} style={styles.productCardTitle}>
+                    {service.name}
+                  </Text>
+                  <Text style={styles.productCardPrice}>
+                    Starts at {formatInr(price)}
+                  </Text>
+                  {inCart && defaultPkg ? (
+                    <View style={styles.productStepper}>
+                      <Pressable
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          updateQuantity(service.id, defaultPkg.id, -1);
+                        }}
+                        style={styles.stepperBtn}
+                      >
+                        <Text style={styles.stepperBtnText}>−</Text>
+                      </Pressable>
+                      <Text style={styles.stepperCountText}>{inCart.quantity}</Text>
+                      <Pressable
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          updateQuantity(service.id, defaultPkg.id, 1);
+                        }}
+                        style={styles.stepperBtn}
+                      >
+                        <Text style={styles.stepperBtnText}>+</Text>
+                      </Pressable>
+                    </View>
+                  ) : (
+                    <Pressable
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        if (defaultPkg) {
+                          addToCart(service, defaultPkg, 1);
+                        } else {
+                          setDetailService(service);
+                        }
+                      }}
+                      style={styles.productAddBtn}
+                    >
+                      <Text style={styles.productAddBtnText}>Add</Text>
+                    </Pressable>
+                  )}
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        </View>
+      )}
+
+      {/* ========================================================
+          5. NATIVE SMART PRODUCTS SECTION (MATCHING IMAGE 1)
           ======================================================== */}
       <View style={styles.sectionWrap}>
         <Text style={styles.sectionHeading}>Native Smart Products</Text>
@@ -392,7 +705,33 @@ export function HomeScreen() {
       </View>
 
       {/* ========================================================
-          4. IN THE SPOTLIGHT CAROUSEL (MATCHING IMAGE 2)
+          6. REFER & EARN CASHBACK BANNER (FROM PS-MOBILE)
+          ======================================================== */}
+      <View style={styles.sectionWrap}>
+        <Pressable
+          onPress={handleShareApp}
+          style={({ pressed }) => [styles.referCard, pressed && styles.pressed]}
+          accessibilityRole="button"
+          accessibilityLabel="Refer and earn ₹100 cashback"
+        >
+          <View style={styles.referCopy}>
+            <Text style={styles.referTitle}>Refer and earn ₹100 cashback</Text>
+            <Text style={styles.referText}>
+              Share the NammaPros app with friends &amp; family to earn wallet credits
+            </Text>
+            <View style={styles.referButton}>
+              <Ionicons name="share-social" size={15} color={colors.white} />
+              <Text style={styles.referButtonText}>Share App</Text>
+            </View>
+          </View>
+          <View style={styles.referArt}>
+            <Ionicons name="gift" size={42} color={colors.primary} />
+          </View>
+        </Pressable>
+      </View>
+
+      {/* ========================================================
+          7. IN THE SPOTLIGHT CAROUSEL (MATCHING IMAGE 2)
           ======================================================== */}
       <View style={styles.sectionWrap}>
         <Text style={styles.sectionHeading}>In the spotlight</Text>
@@ -428,7 +767,7 @@ export function HomeScreen() {
       </View>
 
       {/* ========================================================
-          5. NEW AND NOTEWORTHY SECTION (MATCHING IMAGE 2)
+          8. NEW AND NOTEWORTHY SECTION (MATCHING IMAGE 2)
           ======================================================== */}
       <View style={styles.sectionWrap}>
         <Text style={styles.sectionHeading}>New and noteworthy</Text>
@@ -464,7 +803,7 @@ export function HomeScreen() {
       </View>
 
       {/* ========================================================
-          6. TRUST BANNER: "You call. We fix it right." (MATCHING IMAGE 3)
+          9. TRUST BANNER: "You call. We fix it right."
           ======================================================== */}
       <View style={styles.trustBannerWrap}>
         <View style={styles.trustBannerCard}>
@@ -498,7 +837,7 @@ export function HomeScreen() {
       </View>
 
       {/* ========================================================
-          7. THE NAMMAPROS PROMISE FOOTER
+          10. THE NAMMAPROS PROMISE FOOTER
           ======================================================== */}
       <View style={styles.promiseCard}>
         <View style={styles.promiseHeader}>
@@ -521,6 +860,9 @@ const styles = StyleSheet.create({
   content: {
     paddingBottom: 90,
   },
+  pressed: {
+    opacity: 0.75,
+  },
 
   // 1. Burgundy Brand Header Container
   brandHeaderContainer: {
@@ -540,23 +882,23 @@ const styles = StyleSheet.create({
     flex: 1,
     marginRight: spacing.sm,
   },
+  locationTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
   etaHeading: {
     fontSize: 22,
     fontWeight: "900",
     color: colors.white,
     letterSpacing: -0.5,
   },
-  locationDropdownBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    marginTop: 2,
-  },
   locationDropdownText: {
-    fontSize: 13,
+    fontSize: 12.5,
     fontWeight: "600",
     color: "rgba(255, 255, 255, 0.9)",
-    maxWidth: 220,
+    maxWidth: 210,
+    marginTop: 2,
   },
   headerRightActions: {
     flexDirection: "row",
@@ -569,7 +911,7 @@ const styles = StyleSheet.create({
     gap: 4,
     backgroundColor: colors.white,
     borderRadius: radii.pill,
-    paddingHorizontal: 10,
+    paddingHorizontal: 9,
     paddingVertical: 5,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
@@ -578,14 +920,14 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   walletPillText: {
-    fontSize: 13,
+    fontSize: 12.5,
     fontWeight: "800",
-    color: "#1C1917",
+    color: colors.primary,
   },
-  profileAvatarCircle: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+  roundHeaderBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     backgroundColor: colors.white,
     alignItems: "center",
     justifyContent: "center",
@@ -594,15 +936,35 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 2,
     elevation: 2,
+    position: "relative",
+  },
+  cartBadge: {
+    position: "absolute",
+    top: -4,
+    right: -4,
+    minWidth: 18,
+    height: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 4,
+    borderRadius: 9,
+    backgroundColor: colors.primary,
+    borderWidth: 2,
+    borderColor: colors.white,
+  },
+  cartBadgeText: {
+    color: colors.white,
+    fontSize: 9,
+    fontWeight: "800",
   },
 
-  // Search Bar Pill
+  // Search Bar with Rotating Placeholder Hint (matching ps-mobile)
   searchBarPill: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: colors.white,
     borderRadius: radii.pill,
-    height: 46,
+    height: 48,
     paddingHorizontal: spacing.md,
     gap: 10,
     marginTop: 14,
@@ -612,70 +974,68 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
-  searchBarPillPlaceholder: {
+  searchBarPillActive: {
+    borderWidth: 1.5,
+    borderColor: colors.primaryDark,
+  },
+  searchInput: {
     fontSize: 14,
     fontWeight: "500",
-    color: "#78716C",
+    color: colors.heading,
     flex: 1,
+    paddingVertical: 0,
   },
 
-  // Promo Pack Banner
-  promoPackBanner: {
+  // Search Panel Dropdown (matching ps-mobile)
+  searchPanelWrap: {
+    backgroundColor: colors.white,
+    borderRadius: radii.lg,
+    padding: spacing.md,
+    marginTop: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  panelHeaderRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "rgba(255, 255, 255, 0.16)",
-    borderRadius: radii.xl,
-    padding: spacing.md,
-    marginTop: 14,
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.25)",
+    marginBottom: 8,
   },
-  promoPackLeft: {
-    flex: 1,
-  },
-  promoBrand: {
+  panelTitle: {
     fontSize: 11,
     fontWeight: "800",
-    color: "rgba(255, 255, 255, 0.85)",
+    color: colors.muted,
+    letterSpacing: 0.8,
     textTransform: "uppercase",
-    letterSpacing: 0.5,
   },
-  promoTitle: {
-    fontSize: 17,
-    fontWeight: "900",
-    color: colors.white,
-    marginTop: 2,
-    letterSpacing: -0.3,
-  },
-  promoSub: {
+  panelCloseText: {
     fontSize: 13,
-    fontWeight: "600",
-    color: "rgba(255, 255, 255, 0.9)",
-    marginTop: 1,
+    fontWeight: "700",
+    color: colors.primary,
   },
-  promoDiscountBadge: {
-    backgroundColor: "rgba(255, 255, 255, 0.25)",
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    marginTop: 6,
-    alignSelf: "flex-start",
+  chipsWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
   },
-  promoDiscountText: {
-    fontSize: 11,
-    fontWeight: "800",
-    color: colors.white,
-  },
-  promoPackRight: {
-    width: 85,
-    height: 85,
+  searchChip: {
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: radii.pill,
+    backgroundColor: "#F5F3F1",
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  promoTechnicianImg: {
-    width: 85,
-    height: 85,
+  searchChipText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: colors.heading,
   },
 
   // Active Live Tracking Card
@@ -749,10 +1109,97 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
-  // 2. 4-Column Category Grid matching Image 1
+  // 2. Auto-scrolling Banner Carousel (from ps-mobile)
+  carouselContainer: {
+    marginTop: spacing.lg,
+    gap: 8,
+  },
+  carouselRow: {
+    gap: spacing.md,
+    paddingHorizontal: spacing.lg,
+  },
+  bannerSlide: {
+    width: BANNER_WIDTH,
+    height: BANNER_HEIGHT,
+    borderRadius: radii.xl,
+    overflow: "hidden",
+    position: "relative",
+    backgroundColor: colors.primaryDark,
+  },
+  bannerOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.45)",
+    padding: spacing.lg,
+    justifyContent: "center",
+    alignItems: "flex-start",
+  },
+  bannerBadgePill: {
+    backgroundColor: "rgba(255, 255, 255, 0.25)",
+    paddingHorizontal: 8,
+    paddingVertical: 2.5,
+    borderRadius: 4,
+    marginBottom: 6,
+  },
+  bannerBadgeText: {
+    fontSize: 9.5,
+    fontWeight: "800",
+    color: colors.white,
+    letterSpacing: 0.5,
+  },
+  bannerTitle: {
+    fontSize: 17,
+    fontWeight: "900",
+    color: colors.white,
+    lineHeight: 22,
+    maxWidth: "80%",
+  },
+  bannerSub: {
+    fontSize: 12,
+    fontWeight: "500",
+    color: "rgba(255, 255, 255, 0.9)",
+    marginTop: 3,
+  },
+  bannerCtaPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: colors.white,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: radii.pill,
+    marginTop: 10,
+  },
+  bannerCtaText: {
+    fontSize: 11.5,
+    fontWeight: "800",
+    color: colors.heading,
+  },
+  carouselDotsRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 4,
+  },
+  carouselDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#DCD8D3",
+  },
+  carouselDotActive: {
+    width: 18,
+    backgroundColor: colors.primary,
+  },
+
+  // 3. 4-Column Category Grid matching Image 1
   categoryGridSection: {
     paddingHorizontal: spacing.md,
-    marginTop: spacing.lg,
+    marginTop: spacing.xl,
   },
   categoryGrid4Col: {
     flexDirection: "row",
@@ -798,23 +1245,112 @@ const styles = StyleSheet.create({
     lineHeight: 14,
   },
 
-  // Section Generic Wrap
+  // 4. Most Booked Horizontal Scroll Section (from ps-mobile)
   sectionWrap: {
     marginTop: spacing.xl,
     paddingHorizontal: spacing.lg,
   },
+  sectionHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: spacing.md,
+  },
   sectionHeading: {
     fontSize: 18,
     fontWeight: "800",
-    color: colors.ink,
+    color: colors.heading,
     letterSpacing: -0.3,
-    marginBottom: spacing.md,
+  },
+  sectionActionText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: colors.primary,
+  },
+  productCardScroll: {
+    gap: spacing.md,
+    paddingRight: spacing.lg,
+  },
+  productCard: {
+    width: PRODUCT_CARD_WIDTH,
+    gap: 5,
+  },
+  productCardImgWrap: {
+    width: PRODUCT_CARD_WIDTH,
+    height: PRODUCT_CARD_WIDTH * 0.85,
+    borderRadius: radius.card,
+    backgroundColor: "#F3EFEC",
+    overflow: "hidden",
+  },
+  productCardImg: {
+    width: "100%",
+    height: "100%",
+  },
+  productCardTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: colors.heading,
+    lineHeight: 17,
+    minHeight: 34,
+    marginTop: 2,
+  },
+  productCardPrice: {
+    fontSize: 12.5,
+    fontWeight: "700",
+    color: colors.heading,
+  },
+  productAddBtn: {
+    alignSelf: "flex-start",
+    minWidth: 78,
+    height: 32,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radius.small,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    backgroundColor: colors.white,
+    marginTop: 2,
+  },
+  productAddBtnText: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: colors.primary,
+  },
+  productStepper: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    minWidth: 78,
+    height: 32,
+    borderRadius: radius.small,
+    backgroundColor: colors.primarySoft,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    paddingHorizontal: 4,
+    marginTop: 2,
+  },
+  stepperBtn: {
+    width: 22,
+    height: 28,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  stepperBtnText: {
+    fontSize: 15,
+    fontWeight: "900",
+    color: colors.primary,
+  },
+  stepperCountText: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: colors.primary,
   },
 
-  // 3. Native Smart Products Section matching Image 1
+  // 5. Native Smart Products Section matching Image 1
   smartProductsRow: {
     flexDirection: "row",
     gap: 16,
+    marginTop: spacing.sm,
   },
   smartProductCard: {
     width: 96,
@@ -841,7 +1377,63 @@ const styles = StyleSheet.create({
     lineHeight: 15,
   },
 
-  // 4. In the Spotlight Carousel matching Image 2
+  // 6. Refer and Earn Cashback Banner (from ps-mobile)
+  referCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    padding: spacing.lg,
+    borderRadius: radii.xl,
+    backgroundColor: colors.primarySoft,
+    borderWidth: 1,
+    borderColor: "#F5D5DC",
+  },
+  referCopy: {
+    flex: 1,
+    gap: 4,
+  },
+  referTitle: {
+    fontSize: 17,
+    fontWeight: "900",
+    color: colors.heading,
+    lineHeight: 22,
+  },
+  referText: {
+    fontSize: 12.5,
+    color: colors.body,
+    lineHeight: 17,
+  },
+  referButton: {
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: radius.small,
+    backgroundColor: colors.primary,
+  },
+  referButtonText: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: colors.white,
+  },
+  referArt: {
+    width: 76,
+    height: 76,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 38,
+    backgroundColor: colors.white,
+    shadowColor: colors.ink,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+
+  // 7. In the Spotlight Carousel matching Image 2
   spotlightScroll: {
     gap: spacing.md,
     paddingVertical: 2,
@@ -896,7 +1488,7 @@ const styles = StyleSheet.create({
     color: colors.white,
   },
 
-  // 5. New and Noteworthy Section matching Image 2
+  // 8. New and Noteworthy Section matching Image 2
   newNoteworthyGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -942,10 +1534,10 @@ const styles = StyleSheet.create({
     color: "#059669",
   },
 
-  // 6. Trust Banner "You call. We fix it right."
+  // 9. Trust Banner "You call. We fix it right."
   trustBannerWrap: {
-    marginHorizontal: spacing.md,
     marginTop: spacing.xl,
+    paddingHorizontal: spacing.lg,
   },
   trustBannerCard: {
     backgroundColor: "#1C3B47",
@@ -954,88 +1546,89 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.lg,
     paddingHorizontal: spacing.md,
     alignItems: "center",
-    overflow: "hidden",
+    position: "relative",
   },
   trustBannerHead1: {
-    fontSize: 26,
+    fontSize: 28,
     fontWeight: "900",
     color: colors.white,
     textAlign: "center",
-    lineHeight: 30,
+    letterSpacing: -0.5,
   },
   trustBannerHead2: {
-    fontSize: 26,
+    fontSize: 28,
     fontWeight: "900",
     color: colors.white,
     textAlign: "center",
-    lineHeight: 30,
-    marginBottom: spacing.sm,
+    letterSpacing: -0.5,
   },
   trustTechnicianImgWrap: {
     width: "100%",
-    height: 190,
+    height: 180,
+    marginTop: spacing.sm,
+    marginBottom: spacing.xs,
     alignItems: "center",
     justifyContent: "center",
   },
   trustTechnicianImg: {
-    width: "92%",
-    height: "100%",
+    width: "90%",
+    height: 180,
   },
   trustPillsContainer: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    width: "100%",
-    backgroundColor: "rgba(255, 255, 255, 0.16)",
+    backgroundColor: "rgba(255, 255, 255, 0.12)",
     borderRadius: radii.lg,
-    paddingVertical: 10,
-    paddingHorizontal: 6,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.28)",
+    borderColor: "rgba(255, 255, 255, 0.22)",
+    paddingVertical: 10,
+    paddingHorizontal: 8,
     marginTop: 8,
+    width: "100%",
+    justifyContent: "space-around",
   },
   trustGlassPill: {
     flex: 1,
     alignItems: "center",
-    justifyContent: "center",
+    paddingHorizontal: 4,
+  },
+  trustGlassPillText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: colors.white,
+    textAlign: "center",
+    lineHeight: 15,
   },
   trustGlassPillDivider: {
     width: 1,
     height: 24,
-    backgroundColor: "rgba(255, 255, 255, 0.3)",
-  },
-  trustGlassPillText: {
-    fontSize: 10.5,
-    fontWeight: "700",
-    color: colors.white,
-    textAlign: "center",
-    lineHeight: 14,
+    backgroundColor: "rgba(255, 255, 255, 0.25)",
   },
 
-  // 7. Promise Footer
+  // 10. The NammaPros Promise Footer
   promiseCard: {
     marginHorizontal: spacing.lg,
     marginTop: spacing.xl,
-    padding: spacing.lg,
-    backgroundColor: colors.primarySoft,
-    borderRadius: radii.xl,
+    padding: spacing.md,
+    backgroundColor: "#F4EFEA",
+    borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.borderLight,
+    borderColor: "#E5DDD6",
+    gap: 6,
   },
   promiseHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.xs,
-    marginBottom: 4,
+    gap: 6,
   },
   promiseTitle: {
     fontSize: 14,
     fontWeight: "800",
-    color: colors.primary,
+    color: colors.ink,
   },
   promiseBody: {
     fontSize: 12,
-    color: colors.inkSecondary,
-    lineHeight: 18,
+    color: colors.muted,
+    lineHeight: 17,
   },
 });

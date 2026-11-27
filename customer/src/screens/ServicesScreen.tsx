@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   ActivityIndicator,
   Image,
+  Modal,
   NativeScrollEvent,
   NativeSyntheticEvent,
   Platform,
@@ -13,7 +14,12 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { CategoryCardAssets, HomeIconAssets, ServiceBannerAssets } from "../assets";
+import {
+  CategoryCardAssets,
+  HomeIconAssets,
+  ServiceBannerAssets,
+  getServiceListImage,
+} from "../assets";
 import { formatInr, ServiceCard } from "../components/ServiceCard";
 import { SwipeBackContainer } from "../components/SwipeBackContainer";
 import { useApp } from "../state/AppContext";
@@ -201,11 +207,15 @@ export function ServicesScreen() {
     setSearchQuery,
     setActiveTab,
     setDetailService,
+    cartItemCount,
+    cartTotalPaise,
+    setIsCartOpen,
   } = useApp();
 
   const [isSearchActive, setIsSearchActive] = useState(false);
   const [localSearch, setLocalSearch] = useState(searchQuery);
   const [debouncedQuery, setDebouncedQuery] = useState(searchQuery);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const scrollRef = useRef<any>(null);
   const groupPositions = useRef<Record<string, number>>({});
@@ -606,6 +616,45 @@ export function ServicesScreen() {
                 );
               })}
             </ScrollView>
+
+            {/* What service do you need? sub-tiles row (from ps-mobile) */}
+            {groups.length > 1 && (
+              <View style={styles.needsSection}>
+                <Text style={styles.needsTitle}>What service do you need?</Text>
+                <View style={styles.needsTilesRow}>
+                  {groups.map((group) => {
+                    const leadService = group.services[0];
+                    const thumbImg = leadService
+                      ? getServiceListImage(leadService)
+                      : currentCategory?.icon;
+                    return (
+                      <Pressable
+                        key={group.key}
+                        onPress={() => handleScrollToGroup(group.key)}
+                        style={({ pressed }) => [
+                          styles.needsTile,
+                          pressed && { opacity: 0.7 },
+                        ]}
+                        accessibilityRole="button"
+                        accessibilityLabel={group.label}
+                      >
+                        <View style={styles.needsTileArt}>
+                          <Image
+                            source={thumbImg}
+                            style={styles.needsTileImg}
+                            resizeMode="cover"
+                            fadeDuration={0}
+                          />
+                        </View>
+                        <Text numberOfLines={2} style={styles.needsTileText}>
+                          {group.label}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </View>
+            )}
           </View>
 
           {/* Index 1: Sticky 3 Sub-category Group Tabs (Service / Repair / Installation) */}
@@ -708,6 +757,105 @@ export function ServicesScreen() {
           )}
         </ScrollView>
       )}
+
+      {/* ========================================================
+          FLOATING MENU BUTTON & STICKY CART BAR (FROM PS-MOBILE)
+          ======================================================== */}
+      {Boolean(selectedCategorySlug && !debouncedQuery && !isSearchActive) && (
+        <View style={styles.floatingBottomWrap} pointerEvents="box-none">
+          {cartItemCount > 0 ? (
+            <View style={styles.bottomCartBar}>
+              {groups.length > 1 && (
+                <Pressable
+                  onPress={() => setMenuOpen(true)}
+                  style={styles.menuPill}
+                  accessibilityRole="button"
+                  accessibilityLabel="Open section menu"
+                >
+                  <Ionicons name="menu" size={16} color={colors.white} />
+                  <Text style={styles.menuPillText}>Menu</Text>
+                </Pressable>
+              )}
+              <View style={styles.cartInfo}>
+                <Text style={styles.cartPriceText}>{formatInr(cartTotalPaise)}</Text>
+                <Text style={styles.cartCountText}>
+                  {cartItemCount === 1 ? "1 item" : `${cartItemCount} items`}
+                </Text>
+              </View>
+              <Pressable
+                onPress={() => setIsCartOpen(true)}
+                style={styles.viewCartButton}
+                accessibilityRole="button"
+                accessibilityLabel="View Cart"
+              >
+                <Text style={styles.viewCartButtonText}>View Cart</Text>
+                <Ionicons name="arrow-forward" size={15} color={colors.white} />
+              </Pressable>
+            </View>
+          ) : groups.length > 1 ? (
+            <Pressable
+              onPress={() => setMenuOpen(true)}
+              style={styles.floatingMenuPill}
+              accessibilityRole="button"
+              accessibilityLabel="Open section menu"
+            >
+              <Ionicons name="menu" size={18} color={colors.white} />
+              <Text style={styles.floatingMenuPillText}>Menu</Text>
+            </Pressable>
+          ) : null}
+        </View>
+      )}
+
+      {/* Bottom Sheet Menu Modal (matching ps-mobile BottomSheet) */}
+      <Modal
+        visible={menuOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setMenuOpen(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setMenuOpen(false)} />
+          <View style={styles.sheetPanel}>
+            <View style={styles.sheetHeader}>
+              <Text style={styles.sheetTitle}>Choose a section</Text>
+              <Pressable onPress={() => setMenuOpen(false)} hitSlop={12}>
+                <Ionicons name="close" size={22} color={colors.ink} />
+              </Pressable>
+            </View>
+            <View style={styles.sheetGrid}>
+              {groups.map((group) => {
+                const leadService = group.services[0];
+                const thumbImg = leadService
+                  ? getServiceListImage(leadService)
+                  : currentCategory?.icon;
+                return (
+                  <Pressable
+                    key={group.key}
+                    onPress={() => {
+                      setMenuOpen(false);
+                      handleScrollToGroup(group.key);
+                    }}
+                    style={({ pressed }) => [
+                      styles.sheetTile,
+                      pressed && { opacity: 0.7 },
+                    ]}
+                  >
+                    <Image
+                      source={thumbImg}
+                      style={styles.sheetTileArt}
+                      resizeMode="cover"
+                      fadeDuration={0}
+                    />
+                    <Text numberOfLines={2} style={styles.sheetTileText}>
+                      {group.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SwipeBackContainer>
   );
 }
@@ -1108,5 +1256,193 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "600",
     color: colors.primary,
+  },
+
+  // Needs section ("What service do you need?") from ps-mobile
+  needsSection: {
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.sm,
+    gap: spacing.sm,
+  },
+  needsTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: colors.ink,
+    letterSpacing: -0.2,
+  },
+  needsTilesRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    rowGap: spacing.md,
+    marginHorizontal: -4,
+  },
+  needsTile: {
+    width: "33.33%",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 4,
+  },
+  needsTileArt: {
+    width: "100%",
+    aspectRatio: 1,
+    borderRadius: radii.md,
+    backgroundColor: "#F4EBE3",
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "#EADFD6",
+  },
+  needsTileImg: {
+    width: "100%",
+    height: "100%",
+  },
+  needsTileText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: colors.ink,
+    textAlign: "center",
+    lineHeight: 15,
+  },
+
+  // Floating Menu and Cart Bar from ps-mobile
+  floatingBottomWrap: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: Platform.OS === "ios" ? 24 : 16,
+    alignItems: "center",
+    paddingHorizontal: spacing.md,
+  },
+  floatingMenuPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: radii.pill,
+    backgroundColor: colors.ink,
+    shadowColor: colors.ink,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 6,
+  },
+  floatingMenuPillText: {
+    color: colors.white,
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  bottomCartBar: {
+    alignSelf: "stretch",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    shadowColor: colors.ink,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 8,
+    gap: spacing.sm,
+  },
+  menuPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: radii.pill,
+    backgroundColor: colors.ink,
+  },
+  menuPillText: {
+    color: colors.white,
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  cartInfo: {
+    flex: 1,
+    paddingLeft: 4,
+  },
+  cartPriceText: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: colors.ink,
+  },
+  cartCountText: {
+    fontSize: 11,
+    color: colors.muted,
+    fontWeight: "500",
+  },
+  viewCartButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: colors.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: radii.md,
+  },
+  viewCartButtonText: {
+    color: colors.white,
+    fontSize: 13,
+    fontWeight: "700",
+  },
+
+  // Bottom Sheet Modal from ps-mobile
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    justifyContent: "flex-end",
+  },
+  sheetPanel: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: radii.xl,
+    borderTopRightRadius: radii.xl,
+    paddingTop: spacing.lg,
+    paddingBottom: Platform.OS === "ios" ? 40 : 28,
+    paddingHorizontal: spacing.lg,
+    gap: spacing.md,
+  },
+  sheetHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingBottom: spacing.xs,
+  },
+  sheetTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: colors.ink,
+  },
+  sheetGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    rowGap: spacing.md,
+    marginHorizontal: -4,
+  },
+  sheetTile: {
+    width: "33.33%",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 4,
+  },
+  sheetTileArt: {
+    width: "100%",
+    aspectRatio: 1,
+    borderRadius: radii.md,
+    backgroundColor: "#F4EBE3",
+    borderWidth: 1,
+    borderColor: "#EADFD6",
+  },
+  sheetTileText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: colors.ink,
+    textAlign: "center",
   },
 });
