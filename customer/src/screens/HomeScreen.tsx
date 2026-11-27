@@ -306,7 +306,7 @@ export function HomeScreen() {
       )}
 
       {/* ========================================================
-          2. 4-COLUMN CATEGORY GRID (EXACTLY MATCHING IMAGE 1)
+          2. 4-COLUMN CATEGORY GRID (DIRECT ICONS WITHOUT ANY BOX)
           ======================================================== */}
       <View style={styles.categoryGridSection}>
         <View style={styles.categoryGrid4Col}>
@@ -321,14 +321,12 @@ export function HomeScreen() {
               accessibilityRole="button"
               accessibilityLabel={cat.title.replace("\n", " ")}
             >
-              <View style={styles.categoryIconWrap}>
-                <Image
-                  source={cat.icon}
-                  style={styles.categoryIconImg}
-                  resizeMode="contain"
-                  fadeDuration={0}
-                />
-              </View>
+              <Image
+                source={cat.icon}
+                style={styles.categoryIconImg}
+                resizeMode="contain"
+                fadeDuration={0}
+              />
 
               {Boolean(cat.timeBadge) && (
                 <View style={styles.timeBadgePill}>
@@ -345,7 +343,7 @@ export function HomeScreen() {
       </View>
 
       {/* ========================================================
-          3. NATIVE SMART PRODUCTS SECTION (MATCHING IMAGE 1)
+          3. NATIVE SMART PRODUCTS SECTION (DIRECT ICONS WITHOUT BOX)
           ======================================================== */}
       <View style={styles.sectionWrap}>
         <Text style={styles.sectionHeading}>Native Smart Products</Text>
@@ -356,14 +354,12 @@ export function HomeScreen() {
             accessibilityRole="button"
             accessibilityLabel="Native Water Purifier"
           >
-            <View style={styles.smartProductImageWrap}>
-              <Image
-                source={HomeIconAssets["water-purifier"]}
-                style={styles.smartProductImg}
-                resizeMode="contain"
-                fadeDuration={0}
-              />
-            </View>
+            <Image
+              source={HomeIconAssets["water-purifier"]}
+              style={styles.smartProductImg}
+              resizeMode="contain"
+              fadeDuration={0}
+            />
             <Text style={styles.smartProductTitle}>Native Water Purifier</Text>
           </Pressable>
 
@@ -373,14 +369,12 @@ export function HomeScreen() {
             accessibilityRole="button"
             accessibilityLabel="Native Smart Locks"
           >
-            <View style={styles.smartProductImageWrap}>
-              <Image
-                source={HomeIconAssets.cctv}
-                style={styles.smartProductImg}
-                resizeMode="contain"
-                fadeDuration={0}
-              />
-            </View>
+            <Image
+              source={HomeIconAssets.cctv}
+              style={styles.smartProductImg}
+              resizeMode="contain"
+              fadeDuration={0}
+            />
             <Text style={styles.smartProductTitle}>Native Smart Locks &amp; CCTV</Text>
           </Pressable>
         </View>
@@ -755,37 +749,24 @@ const styles = StyleSheet.create({
     rowGap: 14,
   },
   categoryCard4Col: {
-    width: "23.2%",
-    backgroundColor: colors.surface,
-    borderRadius: radii.lg,
-    paddingVertical: 10,
-    paddingHorizontal: 3,
+    width: "23.5%",
+    backgroundColor: "transparent",
+    paddingVertical: 4,
+    paddingHorizontal: 2,
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#F0EBE7",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 3,
-    elevation: 1,
+    borderWidth: 0,
   },
   categoryCard4ColPressed: {
-    backgroundColor: "#FAF7F5",
-    transform: [{ scale: 0.96 }],
-  },
-  categoryIconWrap: {
-    width: 46,
-    height: 46,
-    alignItems: "center",
-    justifyContent: "center",
+    opacity: 0.65,
+    transform: [{ scale: 0.95 }],
   },
   categoryIconImg: {
-    width: 44,
-    height: 44,
+    width: 56,
+    height: 56,
   },
   timeBadgePill: {
     backgroundColor: "#ECFDF5",
-    paddingHorizontal: 5,
+    paddingHorizontal: 6,
     paddingVertical: 1.5,
     borderRadius: 4,
     marginTop: 3,
@@ -796,7 +777,7 @@ const styles = StyleSheet.create({
     color: "#059669",
   },
   categoryCardLabel: {
-    fontSize: 10.5,
+    fontSize: 11,
     fontWeight: "700",
     color: colors.ink,
     textAlign: "center",
@@ -825,28 +806,15 @@ const styles = StyleSheet.create({
   },
   smartProductCard: {
     flex: 1,
-    backgroundColor: colors.surface,
-    borderRadius: radii.lg,
-    padding: spacing.md,
+    backgroundColor: "transparent",
+    padding: spacing.sm,
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#F0EBE7",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 3,
-    elevation: 1,
-  },
-  smartProductImageWrap: {
-    width: 60,
-    height: 60,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 6,
+    borderWidth: 0,
   },
   smartProductImg: {
-    width: 56,
-    height: 56,
+    width: 60,
+    height: 60,
+    marginBottom: 6,
   },
   smartProductTitle: {
     fontSize: 12,
@@ -919,21 +887,14 @@ const styles = StyleSheet.create({
     rowGap: 14,
   },
   noteworthyCard: {
-    width: "23.2%",
-    backgroundColor: colors.surface,
-    borderRadius: radii.lg,
-    padding: 6,
+    width: "23.5%",
+    backgroundColor: "transparent",
+    padding: 2,
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#F0EBE7",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 3,
-    elevation: 1,
+    borderWidth: 0,
   },
   noteworthyCardPressed: {
-    backgroundColor: "#FAF7F5",
+    opacity: 0.65,
     transform: [{ scale: 0.96 }],
   },
   noteworthyImageWrap: {
