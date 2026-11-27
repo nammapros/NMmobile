@@ -978,7 +978,8 @@ const styles = StyleSheet.create({
     color: "#78716C",
   },
   servicesListWrap: {
-    gap: 2,
+    gap: 6,
+    paddingBottom: 8,
   },
 
   emptyBox: {

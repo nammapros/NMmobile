@@ -28,21 +28,25 @@ export function SwipeBackContainer({
 
   const panResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: (evt) => {
-        if (!enabled) return false;
-        // Only initiate if the finger touches near the left screen edge
-        return evt.nativeEvent.pageX <= edgeWidth;
-      },
+      onStartShouldSetPanResponder: () => false,
+      onStartShouldSetPanResponderCapture: () => false,
       onMoveShouldSetPanResponder: (evt, gestureState) => {
         if (!enabled) return false;
-        // Only capture if touch originated near the left edge and is dragging rightward horizontally
-        const isNearEdge = evt.nativeEvent.pageX <= edgeWidth + 80;
-        const isSwipingRight = gestureState.dx > 15;
-        const isHorizontal = Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.3;
-        return isNearEdge && isSwipingRight && isHorizontal;
+        const startX = evt.nativeEvent.pageX - gestureState.dx;
+        const isStartedNearEdge = startX <= edgeWidth;
+        const isSwipingRight = gestureState.dx > 12;
+        const isHorizontal = Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.4;
+        return isStartedNearEdge && isSwipingRight && isHorizontal;
+      },
+      onMoveShouldSetPanResponderCapture: (evt, gestureState) => {
+        if (!enabled) return false;
+        const startX = evt.nativeEvent.pageX - gestureState.dx;
+        const isStartedNearEdge = startX <= edgeWidth;
+        const isSwipingRight = gestureState.dx > 18;
+        const isHorizontal = Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.4;
+        return isStartedNearEdge && isSwipingRight && isHorizontal;
       },
       onPanResponderRelease: (_, gestureState) => {
-        // Trigger back action if dragged past threshold or swiped with quick flick
         if (gestureState.dx >= threshold || gestureState.vx > 0.35) {
           onBackRef.current();
         }

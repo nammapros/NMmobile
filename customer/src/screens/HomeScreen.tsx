@@ -149,7 +149,13 @@ export function HomeScreen() {
     setIsLocationModalOpen,
     setIsAuthOpen,
     user,
+    savedAddresses,
   } = useApp();
+
+  const activeAddressLine =
+    savedAddresses && savedAddresses.length > 0
+      ? savedAddresses[0].line_1 || savedAddresses[0].locality || savedAddresses[0].label || `${selectedCity} • Anna Nagar`
+      : `${selectedCity} • Anna Nagar`;
 
   const handleQuickSearch = (query: string) => {
     setSearchQuery(query);
@@ -203,10 +209,10 @@ export function HomeScreen() {
               onPress={() => setIsLocationModalOpen(true)}
               style={styles.locationDropdownBtn}
               accessibilityRole="button"
-              accessibilityLabel={`Current location: ${selectedCity}`}
+              accessibilityLabel={`Current location: ${activeAddressLine}`}
             >
               <Text style={styles.locationDropdownText} numberOfLines={1}>
-                Home - {selectedCity} • Anna Nagar
+                Home - {activeAddressLine}
               </Text>
               <Ionicons name="chevron-down" size={14} color={colors.white} />
             </Pressable>
@@ -344,7 +350,7 @@ export function HomeScreen() {
       </View>
 
       {/* ========================================================
-          3. NATIVE SMART PRODUCTS SECTION (DIRECT ICONS WITHOUT BOX)
+          3. NATIVE SMART PRODUCTS SECTION (MATCHING IMAGE 1)
           ======================================================== */}
       <View style={styles.sectionWrap}>
         <Text style={styles.sectionHeading}>Native Smart Products</Text>
@@ -355,12 +361,14 @@ export function HomeScreen() {
             accessibilityRole="button"
             accessibilityLabel="Native Water Purifier"
           >
-            <Image
-              source={HomeIconAssets["water-purifier"]}
-              style={styles.smartProductImg}
-              resizeMode="contain"
-              fadeDuration={0}
-            />
+            <View style={styles.smartProductCardBox}>
+              <Image
+                source={HomeIconAssets["water-purifier"]}
+                style={styles.smartProductImg}
+                resizeMode="contain"
+                fadeDuration={0}
+              />
+            </View>
             <Text style={styles.smartProductTitle}>Native Water Purifier</Text>
           </Pressable>
 
@@ -370,13 +378,15 @@ export function HomeScreen() {
             accessibilityRole="button"
             accessibilityLabel="Native Smart Locks"
           >
-            <Image
-              source={HomeIconAssets.cctv}
-              style={styles.smartProductImg}
-              resizeMode="contain"
-              fadeDuration={0}
-            />
-            <Text style={styles.smartProductTitle}>Native Smart Locks &amp; CCTV</Text>
+            <View style={styles.smartProductCardBox}>
+              <Image
+                source={HomeIconAssets.cctv}
+                style={styles.smartProductImg}
+                resizeMode="contain"
+                fadeDuration={0}
+              />
+            </View>
+            <Text style={styles.smartProductTitle}>Native Smart Locks</Text>
           </Pressable>
         </View>
       </View>
@@ -804,28 +814,31 @@ const styles = StyleSheet.create({
   // 3. Native Smart Products Section matching Image 1
   smartProductsRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    gap: spacing.md,
+    gap: 16,
   },
   smartProductCard: {
-    flex: 1,
-    backgroundColor: "transparent",
-    padding: spacing.sm,
+    width: 96,
     alignItems: "center",
-    borderWidth: 0,
   },
-  smartProductImg: {
-    width: 60,
-    height: 60,
-    aspectRatio: 1,
+  smartProductCardBox: {
+    width: 88,
+    height: 88,
+    backgroundColor: "#F3F4F6",
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
     marginBottom: 6,
   },
+  smartProductImg: {
+    width: 66,
+    height: 66,
+  },
   smartProductTitle: {
-    fontSize: 12,
+    fontSize: 11.5,
     fontWeight: "700",
     color: colors.ink,
     textAlign: "center",
-    lineHeight: 16,
+    lineHeight: 15,
   },
 
   // 4. In the Spotlight Carousel matching Image 2

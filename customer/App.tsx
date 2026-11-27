@@ -32,11 +32,12 @@ function MainNavigator() {
   const insets = useSafeAreaInsets();
   const topInset = Math.max(
     insets.top,
-    Platform.OS === "android" ? Math.max(statusBarHeight, 36) : 0
+    Platform.OS === "android" ? Math.max(statusBarHeight, 32) : 0
   );
 
   return (
     <SafeAreaView
+      edges={["bottom", "left", "right"]}
       style={[
         styles.safeArea,
         {
