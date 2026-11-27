@@ -27,8 +27,7 @@ import type { Address, Booking } from "../types";
 type CheckoutStep =
   | "cart"
   | "address"
-  | "date"
-  | "slot"
+  | "datetime"
   | "payment"
   | "confirmed";
 
@@ -269,9 +268,8 @@ export function CartModal() {
       setIsCartOpen(false);
       setCurrentStep("cart");
     } else if (currentStep === "address") setCurrentStep("cart");
-    else if (currentStep === "date") setCurrentStep("address");
-    else if (currentStep === "slot") setCurrentStep("date");
-    else if (currentStep === "payment") setCurrentStep("slot");
+    else if (currentStep === "datetime") setCurrentStep("address");
+    else if (currentStep === "payment") setCurrentStep("datetime");
   };
 
   return (
@@ -300,8 +298,7 @@ export function CartModal() {
           <Text style={styles.headerTitle}>
             {currentStep === "cart" && "Your Cart"}
             {currentStep === "address" && "Select Address"}
-            {currentStep === "date" && "Select Date"}
-            {currentStep === "slot" && "Choose Time Slot"}
+            {currentStep === "datetime" && "Select Date & Time"}
             {currentStep === "payment" && "Payment"}
             {currentStep === "confirmed" && "Confirmation"}
           </Text>
@@ -483,7 +480,7 @@ export function CartModal() {
 
             <View style={styles.bottomBar}>
               <Pressable
-                onPress={() => setCurrentStep("date")}
+                onPress={() => setCurrentStep("datetime")}
                 style={styles.pillActionBtn}
               >
                 <Text style={styles.pillActionBtnText}>Continue</Text>
@@ -493,11 +490,13 @@ export function CartModal() {
         )}
 
         {/* ========================================================
-            STEP 3: SELECT DATE (Screen 13 in Mockup)
+            STEP 3: SELECT DATE & TIME (Single Unified Booking Step)
             ======================================================== */}
-        {currentStep === "date" && (
+        {currentStep === "datetime" && (
           <View style={styles.stepContainer}>
             <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+              {/* Section 1: Date Selection */}
+              <Text style={styles.datetimeSectionTitle}>1. Select Date</Text>
               <View style={styles.calendarContainer}>
                 {/* Month Navigator */}
                 <View style={styles.monthHeader}>
@@ -538,34 +537,16 @@ export function CartModal() {
                   })}
                 </View>
               </View>
-            </ScrollView>
 
-            <View style={styles.bottomBar}>
-              <Pressable
-                onPress={() => setCurrentStep("slot")}
-                style={styles.pillActionBtn}
-              >
-                <Text style={styles.pillActionBtnText}>Continue</Text>
-              </Pressable>
-            </View>
-          </View>
-        )}
-
-        {/* ========================================================
-            STEP 4: CHOOSE TIME SLOT (Screen 14 in Mockup)
-            ======================================================== */}
-        {currentStep === "slot" && (
-          <View style={styles.stepContainer}>
-            <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
-              {/* Selected Date Card */}
-              <View style={styles.selectedDateCard}>
-                <Ionicons name="calendar-outline" size={18} color={colors.primary} />
-                <Text style={styles.selectedDateCardText}>
-                  Wed, {selectedDateDay} Nov 2026
-                </Text>
+              {/* Section 2: Time Slot Selection (Directly on the same screen) */}
+              <View style={styles.timeSectionHeaderRow}>
+                <Text style={styles.datetimeSectionTitle}>2. Choose Time Slot</Text>
+                <View style={styles.selectedDayBadge}>
+                  <Ionicons name="calendar-outline" size={13} color={colors.primary} />
+                  <Text style={styles.selectedDayBadgeText}>Nov {selectedDateDay}, 2026</Text>
+                </View>
               </View>
 
-              {/* Time Slots List */}
               <View style={styles.slotsList}>
                 {TIME_SLOTS.map((slot, idx) => {
                   const isSelected = selectedSlotIndex === idx;
@@ -575,14 +556,26 @@ export function CartModal() {
                       onPress={() => setSelectedSlotIndex(idx)}
                       style={[styles.slotCard, isSelected && styles.slotCardSelected]}
                     >
-                      <Text
-                        style={[
-                          styles.slotCardText,
-                          isSelected && styles.slotCardTextSelected,
-                        ]}
-                      >
-                        {slot}
-                      </Text>
+                      <View style={styles.slotCardLeft}>
+                        <Ionicons
+                          name={isSelected ? "time" : "time-outline"}
+                          size={18}
+                          color={isSelected ? colors.primary : colors.muted}
+                        />
+                        <Text
+                          style={[
+                            styles.slotCardText,
+                            isSelected && styles.slotCardTextSelected,
+                          ]}
+                        >
+                          {slot}
+                        </Text>
+                      </View>
+                      {isSelected ? (
+                        <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
+                      ) : (
+                        <Ionicons name="ellipse-outline" size={20} color="#D6D3D1" />
+                      )}
                     </Pressable>
                   );
                 })}
@@ -590,11 +583,20 @@ export function CartModal() {
             </ScrollView>
 
             <View style={styles.bottomBar}>
+              <View style={styles.datetimeSummaryRow}>
+                <Text style={styles.datetimeSummaryLabel}>Selected Schedule:</Text>
+                <Text style={styles.datetimeSummaryValue}>
+                  {selectedDateDay} Nov 2026 • {TIME_SLOTS[selectedSlotIndex]}
+                </Text>
+              </View>
               <Pressable
                 onPress={() => setCurrentStep("payment")}
                 style={styles.pillActionBtn}
+                accessibilityRole="button"
+                accessibilityLabel="Continue to Payment"
               >
-                <Text style={styles.pillActionBtnText}>Continue</Text>
+                <Text style={styles.pillActionBtnText}>Continue to Payment</Text>
+                <Ionicons name="arrow-forward" size={16} color={colors.white} />
               </Pressable>
             </View>
           </View>
@@ -1051,36 +1053,75 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
 
-  // Step 4: Time Slots
-  selectedDateCard: {
+  // Step 3: Date & Time Single Page
+  datetimeSectionTitle: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: colors.ink,
+    marginBottom: spacing.sm,
+    marginTop: spacing.xs,
+  },
+  timeSectionHeaderRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.sm,
-    backgroundColor: colors.primarySoft,
-    padding: spacing.md,
-    borderRadius: radii.md,
-    marginBottom: spacing.lg,
+    justifyContent: "space-between",
+    marginTop: spacing.lg,
+    marginBottom: spacing.xs,
   },
-  selectedDateCardText: {
-    fontSize: 14,
+  selectedDayBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: colors.primarySoft,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: radii.sm,
+  },
+  selectedDayBadgeText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: colors.primary,
+  },
+  datetimeSummaryRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 6,
+    paddingHorizontal: spacing.xs,
+  },
+  datetimeSummaryLabel: {
+    fontSize: 12,
+    color: colors.muted,
+  },
+  datetimeSummaryValue: {
+    fontSize: 12,
     fontWeight: "700",
     color: colors.primary,
   },
   slotsList: {
-    gap: spacing.md,
+    gap: spacing.sm,
+    marginBottom: spacing.lg,
   },
   slotCard: {
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.borderLight,
-    borderRadius: radii.lg,
-    paddingVertical: spacing.lg,
-    paddingHorizontal: spacing.lg,
+    borderRadius: radii.md,
+    paddingVertical: 12,
+    paddingHorizontal: spacing.md,
+    flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
   },
   slotCardSelected: {
-    backgroundColor: colors.primary,
+    backgroundColor: colors.primarySoft,
     borderColor: colors.primary,
+    borderWidth: 1.5,
+  },
+  slotCardLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
   },
   slotCardText: {
     fontSize: 14,
@@ -1088,7 +1129,7 @@ const styles = StyleSheet.create({
     color: colors.ink,
   },
   slotCardTextSelected: {
-    color: colors.white,
+    color: colors.primary,
     fontWeight: "800",
   },
 

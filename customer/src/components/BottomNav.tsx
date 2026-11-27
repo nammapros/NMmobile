@@ -13,9 +13,8 @@ interface TabItem {
 
 const TABS: TabItem[] = [
   { id: "home", label: "Home", icon: "home-outline", iconActive: "home" },
-  { id: "services", label: "Services", icon: "grid-outline", iconActive: "grid" },
   { id: "bookings", label: "Bookings", icon: "calendar-outline", iconActive: "calendar" },
-  { id: "account", label: "Account", icon: "person-outline", iconActive: "person" },
+  { id: "account", label: "Accounts", icon: "person-outline", iconActive: "person" },
 ];
 
 export function BottomNav() {

@@ -36,15 +36,20 @@ function MainNavigator() {
   );
 
   return (
-    <SafeAreaView style={[styles.safeArea, { paddingTop: topInset }]}>
-      <StatusBar style="dark" />
+    <SafeAreaView
+      style={[
+        styles.safeArea,
+        {
+          paddingTop: topInset,
+          backgroundColor: activeTab === "home" ? "#7C3AED" : colors.surface,
+        },
+      ]}
+    >
+      <StatusBar style={activeTab === "home" ? "light" : "dark"} />
       <KeyboardAvoidingView
         style={styles.keyboardView}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        {/* Top Header shown on Home */}
-        {activeTab === "home" && <Header />}
-
         {/* Tab Screens: Persistent Mounting with display:none to prevent icon and service re-rendering */}
         <View style={styles.tabContent}>
           <View style={[styles.screenWrap, activeTab !== "home" && styles.screenHidden]}>

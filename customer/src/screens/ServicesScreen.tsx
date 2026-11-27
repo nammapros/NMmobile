@@ -1,9 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  FlatList,
   Image,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
   Platform,
   Pressable,
   ScrollView,
@@ -18,6 +19,92 @@ import { SwipeBackContainer } from "../components/SwipeBackContainer";
 import { useApp } from "../state/AppContext";
 import { colors, radii, spacing } from "../theme";
 import type { Service } from "../types";
+
+export type GroupKey = "service" | "repair" | "install";
+
+export interface ServiceGroup {
+  key: GroupKey;
+  label: string;
+  services: Service[];
+}
+
+export function groupKeyOf(service: Service): GroupKey {
+  const text = `${service.name} ${service.slug}`.toLowerCase();
+  if (/(uninstall|install|mount|fitting|setup)/.test(text)) return "install";
+  if (/(repair|gas|refill|inspection|check|diagnos|fix|leak)/.test(text)) return "repair";
+  return "service";
+}
+
+export function groupServices(
+  categorySlug: string | null | undefined,
+  services: Service[]
+): ServiceGroup[] {
+  const slug = (categorySlug || "").toLowerCase();
+  const isAc = ["ac", "air-conditioning"].includes(slug);
+  const labels: Record<GroupKey, string> = {
+    service: "Service",
+    repair: isAc ? "Repair & gas refill" : "Repair & Fix",
+    install: "Installation & uninstallation",
+  };
+  return (["service", "repair", "install"] as GroupKey[])
+    .map((key) => ({
+      key,
+      label: labels[key],
+      services: services.filter((s) => groupKeyOf(s) === key),
+    }))
+    .filter((g) => g.services.length > 0);
+}
+
+function matchesCategory(s: Service, targetSlug: string): boolean {
+  const target = targetSlug.toLowerCase().trim();
+  const cat = (s.category || "").toLowerCase().trim();
+  const slug = (s.slug || "").toLowerCase().trim();
+  if (target === "all") return true;
+
+  if (target === "ac" || target === "air-conditioning") {
+    return (
+      cat === "ac" ||
+      cat === "air-conditioning" ||
+      slug === "ac" ||
+      slug.startsWith("ac-") ||
+      slug.includes("-ac-") ||
+      slug.endsWith("-ac") ||
+      slug.includes("foam-jet") ||
+      slug.includes("general-ac")
+    );
+  }
+
+  if (target === "appliances" || target === "appliance-services") {
+    return [
+      "washing-machine",
+      "refrigerator",
+      "tv",
+      "geyser",
+      "microwave-oven",
+      "dishwasher",
+      "chimney",
+      "water-purifier",
+    ].some((c) => cat === c || slug.startsWith(c));
+  }
+
+  if (target === "cleaning" || target === "deep-cleaning") {
+    return [
+      "full-house-cleaning",
+      "kitchen-cleaning",
+      "bathroom-cleaning",
+      "cleaning",
+    ].some((c) => cat === c || slug.startsWith(c));
+  }
+
+  return (
+    cat === target ||
+    cat.replace(/-/g, "") === target.replace(/-/g, "") ||
+    slug === target ||
+    slug.startsWith(`${target}-`) ||
+    slug.includes(`-${target}-`) ||
+    slug.endsWith(`-${target}`)
+  );
+}
 
 interface CategoryMeta {
   slug: string;
@@ -120,6 +207,10 @@ export function ServicesScreen() {
   const [localSearch, setLocalSearch] = useState(searchQuery);
   const [debouncedQuery, setDebouncedQuery] = useState(searchQuery);
 
+  const scrollRef = useRef<any>(null);
+  const groupPositions = useRef<Record<string, number>>({});
+  const [activeGroupKey, setActiveGroupKey] = useState<string>("service");
+
   useEffect(() => {
     const handler = setTimeout(() => {
       setDebouncedQuery(localSearch);
@@ -144,15 +235,7 @@ export function ServicesScreen() {
     let list = services.filter((s) => s.is_active !== false);
 
     if (selectedCategorySlug && selectedCategorySlug !== "all") {
-      list = list.filter((s) => {
-        const cat = s.category?.toLowerCase() || "";
-        const target = selectedCategorySlug.toLowerCase();
-        return (
-          cat === target ||
-          cat.includes(target) ||
-          s.slug?.toLowerCase().includes(target)
-        );
-      });
+      list = list.filter((s) => matchesCategory(s, selectedCategorySlug));
     }
 
     const query = debouncedQuery.trim().toLowerCase();
@@ -168,6 +251,20 @@ export function ServicesScreen() {
 
     return list;
   }, [services, selectedCategorySlug, debouncedQuery]);
+
+  // Grouped Services (Service, Repair & gas refill, Installation & uninstallation)
+  const groups = useMemo(() => {
+    return groupServices(selectedCategorySlug, filteredServices);
+  }, [selectedCategorySlug, filteredServices]);
+
+  // Reset scroll & positions on category switch
+  useEffect(() => {
+    groupPositions.current = {};
+    if (groups.length > 0) {
+      setActiveGroupKey(groups[0].key);
+    }
+    scrollRef.current?.scrollTo({ y: 0, animated: false });
+  }, [selectedCategorySlug]);
 
   const handleSelectCategory = (catSlug: string) => {
     setSelectedCategorySlug(catSlug);
@@ -187,10 +284,30 @@ export function ServicesScreen() {
     }
   };
 
-  const renderServiceItem = useCallback(
-    ({ item }: { item: Service }) => <ServiceCard service={item} />,
-    []
-  );
+  const handleScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const scrollY = e.nativeEvent.contentOffset.y;
+    for (let i = groups.length - 1; i >= 0; i--) {
+      const g = groups[i];
+      const pos = groupPositions.current[g.key];
+      if (pos != null && scrollY >= pos - 80) {
+        if (activeGroupKey !== g.key) {
+          setActiveGroupKey(g.key);
+        }
+        break;
+      }
+    }
+  };
+
+  const handleScrollToGroup = (key: GroupKey) => {
+    setActiveGroupKey(key);
+    const targetY = groupPositions.current[key];
+    if (targetY != null && scrollRef.current) {
+      scrollRef.current.scrollTo({
+        y: Math.max(0, targetY - 54),
+        animated: true,
+      });
+    }
+  };
 
   return (
     <SwipeBackContainer onBack={handleBack} style={styles.container}>
@@ -316,9 +433,65 @@ export function ServicesScreen() {
             </View>
           </View>
         </ScrollView>
-      ) : !selectedCategorySlug && !debouncedQuery ? (
+      ) : Boolean(debouncedQuery) ? (
         /* ========================================================
-           MODE B: ALL CATEGORIES GRID (Screen 7 in Mockup)
+           MODE SEARCH RESULTS: Flat matching results with spacing
+           ======================================================== */
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          style={styles.content}
+          contentContainerStyle={styles.serviceListContent}
+        >
+          <View style={styles.searchSummaryBar}>
+            <Text style={styles.searchSummaryText}>
+              Found {filteredServices.length} {filteredServices.length === 1 ? "service" : "services"} for "{debouncedQuery}"
+            </Text>
+            <Pressable
+              onPress={() => {
+                setLocalSearch("");
+                setSearchQuery("");
+                setIsSearchActive(false);
+              }}
+            >
+              <Text style={styles.searchClearBtnText}>Clear</Text>
+            </Pressable>
+          </View>
+
+          {filteredServices.length === 0 ? (
+            <View style={styles.emptyBox}>
+              <Ionicons name="search-outline" size={40} color={colors.subtle} />
+              <Text style={styles.emptyTitle}>
+                No services found for "{debouncedQuery}"
+              </Text>
+              <Text style={styles.emptySub}>
+                Try checking the spelling or browse these popular suggestions:
+              </Text>
+              <View style={styles.emptySuggestionsWrap}>
+                {TRENDING_SEARCHES.slice(0, 4).map((s, idx) => (
+                  <Pressable
+                    key={idx}
+                    onPress={() => {
+                      setLocalSearch(s.query);
+                      setSearchQuery(s.query);
+                    }}
+                    style={styles.emptySuggestionChip}
+                  >
+                    <Text style={styles.emptySuggestionText}>{s.label}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+          ) : (
+            <View style={{ paddingTop: spacing.sm }}>
+              {filteredServices.map((s) => (
+                <ServiceCard key={s.id} service={s} />
+              ))}
+            </View>
+          )}
+        </ScrollView>
+      ) : !selectedCategorySlug ? (
+        /* ========================================================
+           MODE B: ALL CATEGORIES GRID
            ======================================================== */
         <ScrollView
           style={styles.content}
@@ -355,113 +528,142 @@ export function ServicesScreen() {
         </ScrollView>
       ) : (
         /* ========================================================
-           MODE C: SERVICE LISTING (Screen 8 in Mockup)
+           MODE C: CATEGORY DETAIL WITH 3 STICKY TABS & SCROLL-TO
            ======================================================== */
-        <FlatList
-          data={filteredServices}
-          keyExtractor={(item) => item.id}
-          renderItem={renderServiceItem}
-          initialNumToRender={6}
-          maxToRenderPerBatch={6}
-          windowSize={5}
-          removeClippedSubviews={Platform.OS === "android"}
+        <ScrollView
+          ref={scrollRef}
+          stickyHeaderIndices={groups.length > 1 ? [1] : undefined}
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
           showsVerticalScrollIndicator={false}
           style={styles.content}
           contentContainerStyle={styles.serviceListContent}
-          ListHeaderComponent={
-            <View>
-              {/* Search Active Summary Bar */}
-              {Boolean(debouncedQuery) && (
-                <View style={styles.searchSummaryBar}>
-                  <Text style={styles.searchSummaryText}>
-                    Found {filteredServices.length} {filteredServices.length === 1 ? "service" : "services"} for "{debouncedQuery}"
+        >
+          {/* Index 0: Hero Banner + Quick Category Switcher */}
+          <View style={styles.categoryHeroWrapper}>
+            {Boolean(currentCategory) && (
+              <View style={styles.categoryHeroBanner}>
+                <Image
+                  source={currentCategory?.banner}
+                  style={styles.categoryHeroImg}
+                  resizeMode="cover"
+                  fadeDuration={0}
+                />
+                <View style={styles.bannerOverlay}>
+                  <Text style={styles.bannerOverlayTitle}>
+                    {currentCategory?.label}
                   </Text>
+                  <Text style={styles.bannerOverlaySub}>
+                    {currentCategory?.subTitle}
+                  </Text>
+                </View>
+              </View>
+            )}
+
+            {/* Quick Horizontal Main Categories Switcher */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.chipsScroll}
+            >
+              <Pressable
+                onPress={() => {
+                  setSelectedCategorySlug(null);
+                  setSearchQuery("");
+                  setLocalSearch("");
+                }}
+                style={[
+                  styles.chipPill,
+                  !selectedCategorySlug && styles.chipPillActive,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.chipPillText,
+                    !selectedCategorySlug && styles.chipPillTextActive,
+                  ]}
+                >
+                  All Categories
+                </Text>
+              </Pressable>
+              {ALL_CATEGORIES.map((c) => {
+                const isSelected = selectedCategorySlug === c.slug;
+                return (
                   <Pressable
-                    onPress={() => {
-                      setLocalSearch("");
-                      setSearchQuery("");
-                      setIsSearchActive(false);
-                    }}
+                    key={c.slug}
+                    onPress={() => handleSelectCategory(c.slug)}
+                    style={[styles.chipPill, isSelected && styles.chipPillActive]}
                   >
-                    <Text style={styles.searchClearBtnText}>Clear</Text>
+                    <Text
+                      style={[
+                        styles.chipPillText,
+                        isSelected && styles.chipPillTextActive,
+                      ]}
+                    >
+                      {c.label}
+                    </Text>
                   </Pressable>
-                </View>
-              )}
+                );
+              })}
+            </ScrollView>
+          </View>
 
-              {/* Top Banner Image for Category (if not in search query mode) */}
-              {Boolean(currentCategory && !debouncedQuery) && (
-                <View style={styles.categoryHeroBanner}>
-                  <Image
-                    source={currentCategory?.banner}
-                    style={styles.categoryHeroImg}
-                    resizeMode="cover"
-                    fadeDuration={0}
-                  />
-                  <View style={styles.bannerOverlay}>
-                    <Text style={styles.bannerOverlayTitle}>
-                      {currentCategory?.label}
-                    </Text>
-                    <Text style={styles.bannerOverlaySub}>
-                      {currentCategory?.subTitle}
-                    </Text>
-                  </View>
-                </View>
-              )}
-
-              {/* Quick Sub-category Pill Chips */}
+          {/* Index 1: Sticky 3 Sub-category Group Tabs (Service / Repair / Installation) */}
+          {groups.length > 1 ? (
+            <View style={styles.stickyTabsBar}>
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.chipsScroll}
+                contentContainerStyle={styles.groupTabsScroll}
               >
-                <Pressable
-                  onPress={() => {
-                    setSelectedCategorySlug(null);
-                    setSearchQuery("");
-                    setLocalSearch("");
-                  }}
-                  style={[
-                    styles.chipPill,
-                    !selectedCategorySlug && styles.chipPillActive,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.chipPillText,
-                      !selectedCategorySlug && styles.chipPillTextActive,
-                    ]}
-                  >
-                    All Categories
-                  </Text>
-                </Pressable>
-                {ALL_CATEGORIES.map((c) => {
-                  const isSelected = selectedCategorySlug === c.slug;
+                {groups.map((g) => {
+                  const isActive = activeGroupKey === g.key;
                   return (
                     <Pressable
-                      key={c.slug}
-                      onPress={() => handleSelectCategory(c.slug)}
-                      style={[styles.chipPill, isSelected && styles.chipPillActive]}
+                      key={g.key}
+                      onPress={() => handleScrollToGroup(g.key)}
+                      style={[
+                        styles.groupTabPill,
+                        isActive && styles.groupTabPillActive,
+                      ]}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${g.label}, ${g.services.length} services`}
                     >
                       <Text
                         style={[
-                          styles.chipPillText,
-                          isSelected && styles.chipPillTextActive,
+                          styles.groupTabText,
+                          isActive && styles.groupTabTextActive,
                         ]}
                       >
-                        {c.label}
+                        {g.label}
                       </Text>
+                      <View
+                        style={[
+                          styles.groupTabCount,
+                          isActive && styles.groupTabCountActive,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.groupTabCountNum,
+                            isActive && styles.groupTabCountNumActive,
+                          ]}
+                        >
+                          {g.services.length}
+                        </Text>
+                      </View>
                     </Pressable>
                   );
                 })}
               </ScrollView>
-
-              <Text style={styles.servicesCount}>
-                {filteredServices.length} services available
-              </Text>
             </View>
-          }
-          ListEmptyComponent={
-            loadingCatalog && filteredServices.length === 0 ? (
+          ) : (
+            <View style={styles.emptyPlaceholder} />
+          )}
+
+          {/* Index 2..N: Service Groups */}
+          {groups.length === 0 ? (
+            loadingCatalog ? (
               <ActivityIndicator
                 size="large"
                 color={colors.primary}
@@ -470,32 +672,41 @@ export function ServicesScreen() {
             ) : (
               <View style={styles.emptyBox}>
                 <Ionicons name="search-outline" size={40} color={colors.subtle} />
-                <Text style={styles.emptyTitle}>
-                  {debouncedQuery
-                    ? `No services found for "${debouncedQuery}"`
-                    : "No services found"}
-                </Text>
+                <Text style={styles.emptyTitle}>No services available</Text>
                 <Text style={styles.emptySub}>
-                  Try checking the spelling or browse these popular suggestions:
+                  Check out other categories or contact our support team.
                 </Text>
-                <View style={styles.emptySuggestionsWrap}>
-                  {TRENDING_SEARCHES.slice(0, 4).map((s, idx) => (
-                    <Pressable
-                      key={idx}
-                      onPress={() => {
-                        setLocalSearch(s.query);
-                        setSearchQuery(s.query);
-                      }}
-                      style={styles.emptySuggestionChip}
-                    >
-                      <Text style={styles.emptySuggestionText}>{s.label}</Text>
-                    </Pressable>
+              </View>
+            )
+          ) : (
+            groups.map((group) => (
+              <View
+                key={group.key}
+                onLayout={(e) => {
+                  groupPositions.current[group.key] = e.nativeEvent.layout.y;
+                }}
+                style={styles.groupSection}
+              >
+                {/* Group Section Header */}
+                <View style={styles.groupHeaderRow}>
+                  <Text style={styles.groupHeaderTitle}>{group.label}</Text>
+                  <View style={styles.groupCountBadge}>
+                    <Text style={styles.groupCountText}>
+                      {group.services.length} {group.services.length === 1 ? "service" : "services"}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Services in this Group with generous spacing */}
+                <View style={styles.servicesListWrap}>
+                  {group.services.map((service) => (
+                    <ServiceCard key={service.id} service={service} />
                   ))}
                 </View>
               </View>
-            )
-          }
-        />
+            ))
+          )}
+        </ScrollView>
       )}
     </SwipeBackContainer>
   );
@@ -553,7 +764,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
-  // Screen 7: All Categories 2-Column Grid
+  // Category Grid
   categoryGridContent: {
     padding: spacing.lg,
     paddingBottom: 90,
@@ -604,9 +815,12 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
 
-  // Screen 8: Category Hero & Service Listing
+  // Category Hero
   serviceListContent: {
-    paddingBottom: 90,
+    paddingBottom: 160,
+  },
+  categoryHeroWrapper: {
+    backgroundColor: colors.canvas,
   },
   categoryHeroBanner: {
     width: "100%",
@@ -640,8 +854,8 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   chipsScroll: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
     gap: spacing.sm,
   },
   chipPill: {
@@ -664,15 +878,107 @@ const styles = StyleSheet.create({
   chipPillTextActive: {
     color: colors.white,
   },
-  servicesSection: {
-    paddingHorizontal: spacing.lg,
+
+  // Sticky 3 Category Group Tabs
+  stickyTabsBar: {
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: "#EAE3DC",
+    paddingVertical: 10,
+    shadowColor: colors.ink,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
+    elevation: 3,
   },
-  servicesCount: {
+  groupTabsScroll: {
+    paddingHorizontal: spacing.md,
+    gap: 8,
+  },
+  groupTabPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: radii.pill,
+    backgroundColor: "#F5F2EF",
+    borderWidth: 1,
+    borderColor: "#E5DDD5",
+  },
+  groupTabPillActive: {
+    backgroundColor: "#7C3AED",
+    borderColor: "#7C3AED",
+    shadowColor: "#7C3AED",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  groupTabText: {
     fontSize: 13,
     fontWeight: "600",
-    color: colors.muted,
-    marginBottom: spacing.md,
+    color: colors.ink,
   },
+  groupTabTextActive: {
+    color: colors.white,
+    fontWeight: "800",
+  },
+  groupTabCount: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 10,
+    backgroundColor: "#E7DFD7",
+  },
+  groupTabCountActive: {
+    backgroundColor: "rgba(255, 255, 255, 0.25)",
+  },
+  groupTabCountNum: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#6A5D54",
+  },
+  groupTabCountNumActive: {
+    color: colors.white,
+  },
+  emptyPlaceholder: {
+    height: 0,
+  },
+
+  // Grouped Service Sections
+  groupSection: {
+    marginBottom: spacing.xl,
+    paddingTop: spacing.md,
+  },
+  groupHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.xs,
+    marginBottom: spacing.xs,
+  },
+  groupHeaderTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: colors.ink,
+    letterSpacing: -0.2,
+  },
+  groupCountBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: radii.pill,
+    backgroundColor: "#F3EDE8",
+  },
+  groupCountText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#78716C",
+  },
+  servicesListWrap: {
+    gap: 2,
+  },
+
   emptyBox: {
     alignItems: "center",
     paddingVertical: 40,
